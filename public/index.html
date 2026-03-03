@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MVP Agro</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>MVP Agro</h1>
+      <nav>
+        <button data-screen="culturas">Culturas</button>
+        <button data-screen="clima" class="active">Clima</button>
+        <button data-screen="calendario">Calendário</button>
+        <button data-screen="alertas">Alertas</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="inicial" class="screen active">
+        <h2>Tela 1 – Página Inicial</h2>
+        <div class="card">
+          <h3>Resumo do clima atual</h3>
+          <p id="homeWeather">Carregando...</p>
+          <button id="consultarPrevisaoBtn">Consultar previsão</button>
+        </div>
+      </section>
+
+      <section id="culturas" class="screen">
+        <h2>Tela 2 – Cadastro de Cultura</h2>
+        <form id="cultureForm" class="card form-grid">
+          <label>
+            Nome da cultura
+            <input type="text" name="name" required />
+          </label>
+          <label>
+            Data de plantio
+            <input type="date" name="plantingDate" required />
+          </label>
+          <label>
+            Data prevista de colheita
+            <input type="date" name="harvestDate" required />
+          </label>
+          <label>
+            Observações
+            <textarea name="notes" rows="3"></textarea>
+          </label>
+          <button type="submit">Salvar</button>
+        </form>
+
+        <div class="card">
+          <h3>Culturas cadastradas</h3>
+          <ul id="culturesList"></ul>
+        </div>
+      </section>
+
+      <section id="clima" class="screen">
+        <h2>Tela 3 – Previsão do Tempo</h2>
+        <div class="card">
+          <p><strong>Temperatura atual:</strong> <span id="currentTemp">-</span></p>
+          <p><strong>Precipitação prevista:</strong> <span id="currentPrecip">-</span></p>
+        </div>
+        <div class="card">
+          <h3>Próximos dias</h3>
+          <ul id="forecastList"></ul>
+        </div>
+      </section>
+
+      <section id="calendario" class="screen">
+        <h2>Tela 4 – Calendário Agrícola</h2>
+        <div class="card">
+          <div class="calendar-header">
+            <button id="prevMonthBtn">&lt;</button>
+            <h3 id="calendarTitle"></h3>
+            <button id="nextMonthBtn">&gt;</button>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+          <button id="addActivityBtn">Adicionar atividade</button>
+        </div>
+      </section>
+
+      <section id="alertas" class="screen">
+        <h2>Alertas</h2>
+        <div class="card">
+          <ul id="alertsList"></ul>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+  </html>

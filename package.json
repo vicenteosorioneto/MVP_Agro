@@ -1,0 +1,24 @@
+{
+  "name": "mvp_agro",
+  "version": "1.0.0",
+  "description": "MVP agro com clima, culturas e calendário",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vicenteosorioneto/MVP_Agro.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/vicenteosorioneto/MVP_Agro/issues"
+  },
+  "homepage": "https://github.com/vicenteosorioneto/MVP_Agro#readme",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
