@@ -6,30 +6,41 @@ const currentTemp = document.getElementById("currentTemp");
 const currentPrecip = document.getElementById("currentPrecip");
 const forecastList = document.getElementById("forecastList");
 const alertsList = document.getElementById("alertsList");
+const kpiPending = document.getElementById("kpiPending");
+const kpiRisk = document.getElementById("kpiRisk");
+const kpiProductivity = document.getElementById("kpiProductivity");
 
 const cultureForm = document.getElementById("cultureForm");
 const culturesList = document.getElementById("culturesList");
+const financialSummaryList = document.getElementById("financialSummaryList");
 
 const calendarTitle = document.getElementById("calendarTitle");
 const calendarGrid = document.getElementById("calendarGrid");
+const activityForm = document.getElementById("activityForm");
+const activityCulture = document.getElementById("activityCulture");
+const activitiesList = document.getElementById("activitiesList");
+const historyTimeline = document.getElementById("historyTimeline");
+
+const filterStatus = document.getElementById("filterStatus");
+const filterCulture = document.getElementById("filterCulture");
+const filterStartDate = document.getElementById("filterStartDate");
+const filterEndDate = document.getElementById("filterEndDate");
+const clearFiltersBtn = document.getElementById("clearFiltersBtn");
 
 const consultarPrevisaoBtn = document.getElementById("consultarPrevisaoBtn");
-const addActivityBtn = document.getElementById("addActivityBtn");
 const prevMonthBtn = document.getElementById("prevMonthBtn");
 const nextMonthBtn = document.getElementById("nextMonthBtn");
+const exportCsvBtn = document.getElementById("exportCsvBtn");
+const exportPdfBtn = document.getElementById("exportPdfBtn");
 
+let cultures = [];
 let activities = [];
 let calendarDate = new Date();
 
 function showScreen(screenId) {
   screens.forEach((screen) => {
-    screen.classList.toggle("active", screen.id === screenId || (screenId === "clima" && screen.id === "inicial"));
+    screen.classList.toggle("active", screen.id === screenId);
   });
-
-  if (screenId !== "clima") {
-    const initialScreen = document.getElementById("inicial");
-    initialScreen.classList.toggle("active", screenId === "inicial");
-  }
 
   navButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.screen === screenId);
@@ -38,6 +49,36 @@ function showScreen(screenId) {
 
 function formatDate(dateString) {
   return new Date(dateString).toLocaleDateString("pt-BR", { timeZone: "UTC" });
+}
+
+function formatCurrency(value) {
+  return Number(value || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function getFiltersQueryString() {
+  const params = new URLSearchParams();
+
+  if (filterStatus.value !== "all") {
+    params.set("status", filterStatus.value);
+  }
+
+  if (filterCulture.value !== "all") {
+    params.set("cultureId", filterCulture.value);
+  }
+
+  if (filterStartDate.value) {
+    params.set("startDate", filterStartDate.value);
+  }
+
+  if (filterEndDate.value) {
+    params.set("endDate", filterEndDate.value);
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }
 
 async function loadWeather() {
@@ -68,24 +109,148 @@ async function loadWeather() {
   });
 }
 
-async function loadCultures() {
-  const response = await fetch("/api/cultures");
+async function loadDashboard() {
+  const response = await fetch("/api/dashboard");
   const data = await response.json();
 
+  if (!response.ok) {
+    throw new Error(data.error || "Erro ao carregar dashboard.");
+  }
+
+  kpiPending.textContent = data.pendingActivities;
+  kpiRisk.textContent = data.atRiskCultures;
+  kpiProductivity.textContent = `${data.weeklyProductivity}%`;
+}
+
+async function loadCultures() {
+  const response = await fetch("/api/cultures");
+  cultures = await response.json();
+
   culturesList.innerHTML = "";
-  data.forEach((culture) => {
+  cultures.forEach((culture) => {
     const li = document.createElement("li");
-    li.textContent = `${culture.name} | Plantio: ${formatDate(culture.plantingDate)} | Colheita: ${formatDate(culture.harvestDate)}${
-      culture.notes ? ` | Obs: ${culture.notes}` : ""
-    }`;
+    li.textContent = `${culture.name} | Plantio: ${formatDate(culture.plantingDate)} | Colheita: ${formatDate(
+      culture.harvestDate
+    )} | Receita: ${formatCurrency(culture.expectedRevenue)}${culture.notes ? ` | Obs: ${culture.notes}` : ""}`;
     culturesList.appendChild(li);
+  });
+
+  activityCulture.innerHTML = '<option value="">Sem cultura</option>';
+  filterCulture.innerHTML = '<option value="all">Todas</option>';
+
+  cultures.forEach((culture) => {
+    const optionForm = document.createElement("option");
+    optionForm.value = String(culture.id);
+    optionForm.textContent = culture.name;
+    activityCulture.appendChild(optionForm);
+
+    const optionFilter = document.createElement("option");
+    optionFilter.value = String(culture.id);
+    optionFilter.textContent = culture.name;
+    filterCulture.appendChild(optionFilter);
   });
 }
 
 async function loadActivities() {
-  const response = await fetch("/api/activities");
+  const response = await fetch(`/api/activities${getFiltersQueryString()}`);
   activities = await response.json();
+
+  activitiesList.innerHTML = "";
+
+  activities.forEach((activity) => {
+    const li = document.createElement("li");
+
+    const details = document.createElement("div");
+    details.innerHTML = `<strong>${activity.title}</strong> | ${formatDate(activity.date)} | ${activity.cultureName} | ${
+      activity.status === "done" ? "Concluída" : "Pendente"
+    } | Resp.: ${activity.assignee} | Custo: ${formatCurrency(activity.cost)}`;
+    li.appendChild(details);
+
+    if (activity.notes) {
+      const notes = document.createElement("small");
+      notes.textContent = `Obs.: ${activity.notes}`;
+      li.appendChild(notes);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "activity-actions";
+
+    if (activity.photoUrl) {
+      const link = document.createElement("a");
+      link.href = activity.photoUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "Ver foto";
+      actions.appendChild(link);
+    }
+
+    if (activity.status !== "done") {
+      const doneButton = document.createElement("button");
+      doneButton.type = "button";
+      doneButton.textContent = "Marcar como concluída";
+      doneButton.addEventListener("click", async () => {
+        await fetch(`/api/activities/${activity.id}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "done" }),
+        });
+
+        await refreshData();
+      });
+      actions.appendChild(doneButton);
+    }
+
+    li.appendChild(actions);
+    activitiesList.appendChild(li);
+  });
+
   renderCalendar();
+}
+
+async function loadHistory() {
+  const response = await fetch("/api/history");
+  const data = await response.json();
+
+  historyTimeline.innerHTML = "";
+
+  data.forEach((culture) => {
+    const wrapper = document.createElement("article");
+    wrapper.className = "timeline-item";
+
+    const title = document.createElement("h4");
+    title.textContent = culture.cultureName;
+    wrapper.appendChild(title);
+
+    if (!culture.history.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "Sem histórico ainda.";
+      wrapper.appendChild(empty);
+    } else {
+      const list = document.createElement("ul");
+      culture.history.forEach((item) => {
+        const entry = document.createElement("li");
+        entry.textContent = `${formatDate(item.date)} - ${item.title} (${item.status === "done" ? "concluída" : "pendente"}) | ${item.assignee}`;
+        list.appendChild(entry);
+      });
+      wrapper.appendChild(list);
+    }
+
+    historyTimeline.appendChild(wrapper);
+  });
+}
+
+async function loadFinancialSummary() {
+  const response = await fetch("/api/financial-summary");
+  const data = await response.json();
+
+  financialSummaryList.innerHTML = "";
+  data.forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = `${item.cultureName} | Receita: ${formatCurrency(item.expectedRevenue)} | Custos: ${formatCurrency(
+      item.totalCosts
+    )} | Margem: ${formatCurrency(item.estimatedMargin)}`;
+    financialSummaryList.appendChild(li);
+  });
 }
 
 function renderCalendar() {
@@ -159,6 +324,7 @@ cultureForm.addEventListener("submit", async (event) => {
     name: formData.get("name"),
     plantingDate: formData.get("plantingDate"),
     harvestDate: formData.get("harvestDate"),
+    expectedRevenue: Number(formData.get("expectedRevenue") || 0),
     notes: formData.get("notes"),
   };
 
@@ -175,21 +341,16 @@ cultureForm.addEventListener("submit", async (event) => {
   }
 
   cultureForm.reset();
-  await loadCultures();
+  await refreshData();
 });
 
-addActivityBtn.addEventListener("click", async () => {
-  const date = prompt("Data da atividade (AAAA-MM-DD):");
-  const title = prompt("Nome da atividade:");
+activityForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
 
-  if (!date || !title) {
-    return;
-  }
-
+  const formData = new FormData(activityForm);
   const response = await fetch("/api/activities", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ date, title }),
+    body: formData,
   });
 
   if (!response.ok) {
@@ -198,7 +359,8 @@ addActivityBtn.addEventListener("click", async () => {
     return;
   }
 
-  await loadActivities();
+  activityForm.reset();
+  await refreshData();
 });
 
 prevMonthBtn.addEventListener("click", () => {
@@ -211,9 +373,40 @@ nextMonthBtn.addEventListener("click", () => {
   renderCalendar();
 });
 
+filterStatus.addEventListener("change", loadActivities);
+filterCulture.addEventListener("change", loadActivities);
+filterStartDate.addEventListener("change", loadActivities);
+filterEndDate.addEventListener("change", loadActivities);
+
+clearFiltersBtn.addEventListener("click", async () => {
+  filterStatus.value = "all";
+  filterCulture.value = "all";
+  filterStartDate.value = "";
+  filterEndDate.value = "";
+  await loadActivities();
+});
+
+exportCsvBtn.addEventListener("click", () => {
+  window.open("/api/export/csv", "_blank");
+});
+
+exportPdfBtn.addEventListener("click", () => {
+  window.open("/api/export/pdf", "_blank");
+});
+
+async function refreshData() {
+  await Promise.all([
+    loadDashboard(),
+    loadCultures(),
+    loadActivities(),
+    loadHistory(),
+    loadFinancialSummary(),
+  ]);
+}
+
 async function init() {
   try {
-    await Promise.all([loadWeather(), loadCultures(), loadActivities()]);
+    await Promise.all([loadWeather(), refreshData()]);
   } catch (error) {
     homeWeather.textContent = error.message;
   }

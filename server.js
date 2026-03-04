@@ -1,11 +1,14 @@
 const express = require("express");
 const fs = require("fs/promises");
 const path = require("path");
+const multer = require("multer");
+const PDFDocument = require("pdfkit");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const dataDir = path.join(__dirname, "data");
+const uploadsDir = path.join(__dirname, "uploads");
 const culturesFile = path.join(dataDir, "cultures.json");
 const activitiesFile = path.join(dataDir, "activities.json");
 
@@ -16,9 +19,18 @@ const defaultLocation = {
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/uploads", express.static(uploadsDir));
+
+const upload = multer({
+  dest: uploadsDir,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+});
 
 async function ensureDataFiles() {
   await fs.mkdir(dataDir, { recursive: true });
+  await fs.mkdir(uploadsDir, { recursive: true });
 
   const filesToInit = [
     { filePath: culturesFile, initialData: [] },
@@ -41,6 +53,184 @@ async function readJson(filePath) {
 
 async function writeJson(filePath, data) {
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+}
+
+function parseDate(value) {
+  if (!value || typeof value !== "string") {
+    return null;
+  }
+
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date;
+}
+
+function toIsoDate(date) {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    .toISOString()
+    .slice(0, 10);
+}
+
+function getToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function startOfWeek(baseDate) {
+  const date = new Date(baseDate);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function normalizeCulture(culture) {
+  return {
+    id: culture.id,
+    name: culture.name,
+    plantingDate: culture.plantingDate,
+    harvestDate: culture.harvestDate,
+    notes: culture.notes || "",
+    expectedRevenue: Number(culture.expectedRevenue || 0),
+  };
+}
+
+function normalizeActivity(activity, culturesById = new Map()) {
+  const linkedCulture = culturesById.get(activity.cultureId);
+  const parsedDate = parseDate(activity.date);
+
+  return {
+    id: activity.id,
+    date: parsedDate ? toIsoDate(parsedDate) : "",
+    title: activity.title || "Atividade",
+    cultureId: activity.cultureId || null,
+    cultureName: linkedCulture?.name || activity.cultureName || "Sem cultura",
+    status: activity.status === "done" ? "done" : "pending",
+    assignee: activity.assignee || "Não informado",
+    executedAt: activity.executedAt || "",
+    cost: Number(activity.cost || 0),
+    notes: activity.notes || "",
+    photoUrl: activity.photoUrl || "",
+    createdAt: activity.createdAt || new Date().toISOString(),
+  };
+}
+
+function applyActivityFilters(activities, query) {
+  const { status, cultureId, startDate, endDate } = query;
+
+  return activities.filter((activity) => {
+    if (status && status !== "all" && activity.status !== status) {
+      return false;
+    }
+
+    if (cultureId && cultureId !== "all" && String(activity.cultureId) !== String(cultureId)) {
+      return false;
+    }
+
+    const parsedActivityDate = parseDate(activity.date);
+    if (!parsedActivityDate) {
+      return false;
+    }
+
+    if (startDate) {
+      const start = parseDate(startDate);
+      if (start && parsedActivityDate < start) {
+        return false;
+      }
+    }
+
+    if (endDate) {
+      const end = parseDate(endDate);
+      if (end && parsedActivityDate > end) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+function calculateDashboard(cultures, activities) {
+  const today = getToday();
+  const weekStart = startOfWeek(today);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+
+  const pendingActivities = activities.filter((activity) => activity.status === "pending").length;
+
+  const atRiskCultures = cultures.filter((culture) => {
+    const harvest = parseDate(culture.harvestDate);
+    if (!harvest) {
+      return false;
+    }
+
+    const daysToHarvest = Math.ceil((harvest - today) / (1000 * 60 * 60 * 24));
+    return daysToHarvest >= 0 && daysToHarvest <= 14;
+  }).length;
+
+  const weeklyActivities = activities.filter((activity) => {
+    const activityDate = parseDate(activity.date);
+    return activityDate && activityDate >= weekStart && activityDate <= weekEnd;
+  });
+
+  const weeklyDone = weeklyActivities.filter((activity) => activity.status === "done").length;
+  const productivity = weeklyActivities.length
+    ? Math.round((weeklyDone / weeklyActivities.length) * 100)
+    : 0;
+
+  return {
+    pendingActivities,
+    atRiskCultures,
+    weeklyProductivity: productivity,
+    weeklyPeriod: {
+      start: toIsoDate(weekStart),
+      end: toIsoDate(weekEnd),
+    },
+  };
+}
+
+function calculateFinancialSummary(cultures, activities) {
+  return cultures.map((culture) => {
+    const costs = activities
+      .filter((activity) => String(activity.cultureId) === String(culture.id))
+      .reduce((sum, activity) => sum + Number(activity.cost || 0), 0);
+
+    const revenue = Number(culture.expectedRevenue || 0);
+
+    return {
+      cultureId: culture.id,
+      cultureName: culture.name,
+      expectedRevenue: revenue,
+      totalCosts: Number(costs.toFixed(2)),
+      estimatedMargin: Number((revenue - costs).toFixed(2)),
+    };
+  });
+}
+
+function buildTimelineByCulture(cultures, activities) {
+  return cultures.map((culture) => {
+    const history = activities
+      .filter((activity) => String(activity.cultureId) === String(culture.id))
+      .sort((a, b) => (a.date > b.date ? 1 : -1))
+      .map((activity) => ({
+        id: activity.id,
+        date: activity.date,
+        title: activity.title,
+        status: activity.status,
+        assignee: activity.assignee,
+        executedAt: activity.executedAt,
+        cost: activity.cost,
+      }));
+
+    return {
+      cultureId: culture.id,
+      cultureName: culture.name,
+      history,
+    };
+  });
 }
 
 async function getWeatherData() {
@@ -85,11 +275,11 @@ function buildAlerts(weather) {
 
 app.get("/api/cultures", async (req, res) => {
   const cultures = await readJson(culturesFile);
-  res.json(cultures);
+  res.json(cultures.map(normalizeCulture));
 });
 
 app.post("/api/cultures", async (req, res) => {
-  const { name, plantingDate, harvestDate, notes } = req.body;
+  const { name, plantingDate, harvestDate, notes, expectedRevenue } = req.body;
 
   if (!name || !plantingDate || !harvestDate) {
     return res.status(400).json({ error: "Preencha nome e datas da cultura." });
@@ -102,6 +292,7 @@ app.post("/api/cultures", async (req, res) => {
     plantingDate,
     harvestDate,
     notes: notes || "",
+    expectedRevenue: Number(expectedRevenue || 0),
   };
 
   cultures.push(newCulture);
@@ -110,27 +301,250 @@ app.post("/api/cultures", async (req, res) => {
 });
 
 app.get("/api/activities", async (req, res) => {
-  const activities = await readJson(activitiesFile);
-  res.json(activities);
+  const [rawActivities, rawCultures] = await Promise.all([
+    readJson(activitiesFile),
+    readJson(culturesFile),
+  ]);
+
+  const cultures = rawCultures.map(normalizeCulture);
+  const culturesById = new Map(cultures.map((culture) => [culture.id, culture]));
+
+  const normalizedActivities = rawActivities
+    .map((activity) => normalizeActivity(activity, culturesById))
+    .filter((activity) => activity.date);
+
+  const filtered = applyActivityFilters(normalizedActivities, req.query);
+  res.json(filtered);
 });
 
-app.post("/api/activities", async (req, res) => {
-  const { date, title } = req.body;
+app.post("/api/activities", upload.single("photo"), async (req, res) => {
+  const body = req.body || {};
+  const isMultipart = req.is("multipart/form-data");
+
+  const date = body.date;
+  const title = body.title;
+  const status = body.status;
+  const cultureId = body.cultureId ? Number(body.cultureId) : null;
+  const assignee = body.assignee;
+  const cost = Number(body.cost || 0);
+  const notes = body.notes;
 
   if (!date || !title) {
     return res.status(400).json({ error: "Informe data e atividade." });
   }
 
-  const activities = await readJson(activitiesFile);
+  if (!parseDate(date)) {
+    return res.status(400).json({ error: "Data inválida. Use o formato AAAA-MM-DD." });
+  }
+
+  if (Number.isNaN(cost) || cost < 0) {
+    return res.status(400).json({ error: "Custo inválido." });
+  }
+
+  const [activities, rawCultures] = await Promise.all([
+    readJson(activitiesFile),
+    readJson(culturesFile),
+  ]);
+
+  const cultures = rawCultures.map(normalizeCulture);
+  const selectedCulture = cultures.find((culture) => culture.id === cultureId);
+
+  if (cultureId && !selectedCulture) {
+    return res.status(400).json({ error: "Cultura selecionada não encontrada." });
+  }
+
+  const finalStatus = status === "done" ? "done" : "pending";
+  const executedAt = finalStatus === "done" ? new Date().toISOString() : "";
+
   const newActivity = {
     id: Date.now(),
     date,
     title,
+    cultureId,
+    cultureName: selectedCulture?.name || "Sem cultura",
+    status: finalStatus,
+    assignee: assignee || "Não informado",
+    executedAt,
+    cost,
+    notes: notes || "",
+    photoUrl: req.file ? `/uploads/${req.file.filename}` : "",
+    createdAt: new Date().toISOString(),
   };
 
   activities.push(newActivity);
   await writeJson(activitiesFile, activities);
+
+  if (!isMultipart && req.body && req.body.photoUrl) {
+    newActivity.photoUrl = req.body.photoUrl;
+  }
+
   res.status(201).json(newActivity);
+});
+
+app.patch("/api/activities/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!["pending", "done"].includes(status)) {
+    return res.status(400).json({ error: "Status inválido." });
+  }
+
+  const activities = await readJson(activitiesFile);
+  const activity = activities.find((item) => String(item.id) === String(id));
+
+  if (!activity) {
+    return res.status(404).json({ error: "Atividade não encontrada." });
+  }
+
+  activity.status = status;
+  activity.executedAt = status === "done" ? new Date().toISOString() : "";
+
+  await writeJson(activitiesFile, activities);
+  res.json(activity);
+});
+
+app.get("/api/dashboard", async (req, res) => {
+  const [rawCultures, rawActivities] = await Promise.all([
+    readJson(culturesFile),
+    readJson(activitiesFile),
+  ]);
+
+  const cultures = rawCultures.map(normalizeCulture);
+  const culturesById = new Map(cultures.map((culture) => [culture.id, culture]));
+  const activities = rawActivities
+    .map((activity) => normalizeActivity(activity, culturesById))
+    .filter((activity) => activity.date);
+
+  res.json(calculateDashboard(cultures, activities));
+});
+
+app.get("/api/history", async (req, res) => {
+  const [rawCultures, rawActivities] = await Promise.all([
+    readJson(culturesFile),
+    readJson(activitiesFile),
+  ]);
+
+  const cultures = rawCultures.map(normalizeCulture);
+  const culturesById = new Map(cultures.map((culture) => [culture.id, culture]));
+  const activities = rawActivities
+    .map((activity) => normalizeActivity(activity, culturesById))
+    .filter((activity) => activity.date);
+
+  res.json(buildTimelineByCulture(cultures, activities));
+});
+
+app.get("/api/financial-summary", async (req, res) => {
+  const [rawCultures, rawActivities] = await Promise.all([
+    readJson(culturesFile),
+    readJson(activitiesFile),
+  ]);
+
+  const cultures = rawCultures.map(normalizeCulture);
+  const culturesById = new Map(cultures.map((culture) => [culture.id, culture]));
+  const activities = rawActivities
+    .map((activity) => normalizeActivity(activity, culturesById))
+    .filter((activity) => activity.date);
+
+  res.json(calculateFinancialSummary(cultures, activities));
+});
+
+app.get("/api/export/csv", async (req, res) => {
+  const [rawActivities, rawCultures] = await Promise.all([
+    readJson(activitiesFile),
+    readJson(culturesFile),
+  ]);
+
+  const cultures = rawCultures.map(normalizeCulture);
+  const culturesById = new Map(cultures.map((culture) => [culture.id, culture]));
+  const activities = rawActivities
+    .map((activity) => normalizeActivity(activity, culturesById))
+    .filter((activity) => activity.date);
+
+  const headers = [
+    "id",
+    "date",
+    "title",
+    "cultureName",
+    "status",
+    "assignee",
+    "cost",
+    "executedAt",
+  ];
+
+  const csvRows = [headers.join(",")];
+  activities.forEach((activity) => {
+    const row = [
+      activity.id,
+      activity.date,
+      activity.title,
+      activity.cultureName,
+      activity.status,
+      activity.assignee,
+      activity.cost,
+      activity.executedAt,
+    ]
+      .map((value) => `"${String(value || "").replaceAll('"', '""')}"`)
+      .join(",");
+
+    csvRows.push(row);
+  });
+
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", "attachment; filename=relatorio_atividades.csv");
+  res.send(`\uFEFF${csvRows.join("\n")}`);
+});
+
+app.get("/api/export/pdf", async (req, res) => {
+  const [rawCultures, rawActivities] = await Promise.all([
+    readJson(culturesFile),
+    readJson(activitiesFile),
+  ]);
+
+  const cultures = rawCultures.map(normalizeCulture);
+  const culturesById = new Map(cultures.map((culture) => [culture.id, culture]));
+  const activities = rawActivities
+    .map((activity) => normalizeActivity(activity, culturesById))
+    .filter((activity) => activity.date);
+  const dashboard = calculateDashboard(cultures, activities);
+  const financial = calculateFinancialSummary(cultures, activities);
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "attachment; filename=relatorio_agro.pdf");
+
+  const doc = new PDFDocument({ margin: 40 });
+  doc.pipe(res);
+
+  doc.fontSize(18).text("Relatório MVP Agro", { underline: true });
+  doc.moveDown();
+  doc.fontSize(12).text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`);
+  doc.moveDown();
+
+  doc.fontSize(14).text("KPIs");
+  doc.fontSize(11).text(`Atividades pendentes: ${dashboard.pendingActivities}`);
+  doc.text(`Culturas em risco: ${dashboard.atRiskCultures}`);
+  doc.text(`Produtividade semanal: ${dashboard.weeklyProductivity}%`);
+  doc.moveDown();
+
+  doc.fontSize(14).text("Atividades");
+  activities.slice(0, 30).forEach((activity) => {
+    doc
+      .fontSize(10)
+      .text(
+        `${activity.date} | ${activity.title} | ${activity.cultureName} | ${activity.status} | ${activity.assignee} | R$ ${activity.cost.toFixed(2)}`
+      );
+  });
+  doc.moveDown();
+
+  doc.fontSize(14).text("Resumo financeiro");
+  financial.forEach((item) => {
+    doc
+      .fontSize(10)
+      .text(
+        `${item.cultureName} | Receita prevista: R$ ${item.expectedRevenue.toFixed(2)} | Custos: R$ ${item.totalCosts.toFixed(2)} | Margem: R$ ${item.estimatedMargin.toFixed(2)}`
+      );
+  });
+
+  doc.end();
 });
 
 app.get("/api/weather", async (req, res) => {

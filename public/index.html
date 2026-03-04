@@ -10,8 +10,9 @@
     <header class="topbar">
       <h1>MVP Agro</h1>
       <nav>
+        <button data-screen="inicial" class="active">Dashboard</button>
         <button data-screen="culturas">Culturas</button>
-        <button data-screen="clima" class="active">Clima</button>
+        <button data-screen="clima">Clima</button>
         <button data-screen="calendario">Calendário</button>
         <button data-screen="alertas">Alertas</button>
       </nav>
@@ -19,16 +20,39 @@
 
     <main>
       <section id="inicial" class="screen active">
-        <h2>Tela 1 – Página Inicial</h2>
+        <h2>Dashboard</h2>
+        <div class="kpi-grid">
+          <article class="card kpi-card">
+            <h3>Atividades pendentes</h3>
+            <p id="kpiPending" class="kpi-value">-</p>
+          </article>
+          <article class="card kpi-card">
+            <h3>Culturas em risco</h3>
+            <p id="kpiRisk" class="kpi-value">-</p>
+          </article>
+          <article class="card kpi-card">
+            <h3>Produtividade semanal</h3>
+            <p id="kpiProductivity" class="kpi-value">-</p>
+          </article>
+        </div>
+
         <div class="card">
           <h3>Resumo do clima atual</h3>
           <p id="homeWeather">Carregando...</p>
           <button id="consultarPrevisaoBtn">Consultar previsão</button>
         </div>
+
+        <div class="card">
+          <h3>Exportação de relatórios</h3>
+          <div class="button-row">
+            <button id="exportCsvBtn">Exportar CSV</button>
+            <button id="exportPdfBtn">Exportar PDF</button>
+          </div>
+        </div>
       </section>
 
       <section id="culturas" class="screen">
-        <h2>Tela 2 – Cadastro de Cultura</h2>
+        <h2>Cadastro de Cultura</h2>
         <form id="cultureForm" class="card form-grid">
           <label>
             Nome da cultura
@@ -43,6 +67,10 @@
             <input type="date" name="harvestDate" required />
           </label>
           <label>
+            Receita prevista (R$)
+            <input type="number" name="expectedRevenue" min="0" step="0.01" value="0" />
+          </label>
+          <label>
             Observações
             <textarea name="notes" rows="3"></textarea>
           </label>
@@ -53,10 +81,15 @@
           <h3>Culturas cadastradas</h3>
           <ul id="culturesList"></ul>
         </div>
+
+        <div class="card">
+          <h3>Margem estimada por cultura</h3>
+          <ul id="financialSummaryList"></ul>
+        </div>
       </section>
 
       <section id="clima" class="screen">
-        <h2>Tela 3 – Previsão do Tempo</h2>
+        <h2>Previsão do Tempo</h2>
         <div class="card">
           <p><strong>Temperatura atual:</strong> <span id="currentTemp">-</span></p>
           <p><strong>Precipitação prevista:</strong> <span id="currentPrecip">-</span></p>
@@ -68,7 +101,7 @@
       </section>
 
       <section id="calendario" class="screen">
-        <h2>Tela 4 – Calendário Agrícola</h2>
+        <h2>Calendário e Atividades</h2>
         <div class="card">
           <div class="calendar-header">
             <button id="prevMonthBtn">&lt;</button>
@@ -76,13 +109,94 @@
             <button id="nextMonthBtn">&gt;</button>
           </div>
           <div id="calendarGrid" class="calendar-grid"></div>
-          <button id="addActivityBtn">Adicionar atividade</button>
+        </div>
+
+        <form id="activityForm" class="card form-grid" enctype="multipart/form-data">
+          <h3>Adicionar atividade</h3>
+          <label>
+            Data
+            <input type="date" name="date" required />
+          </label>
+          <label>
+            Atividade
+            <input type="text" name="title" required />
+          </label>
+          <label>
+            Cultura
+            <select id="activityCulture" name="cultureId">
+              <option value="">Sem cultura</option>
+            </select>
+          </label>
+          <label>
+            Responsável
+            <input type="text" name="assignee" placeholder="Ex: João" />
+          </label>
+          <label>
+            Status
+            <select name="status">
+              <option value="pending">Pendente</option>
+              <option value="done">Concluída</option>
+            </select>
+          </label>
+          <label>
+            Custo (R$)
+            <input type="number" name="cost" min="0" step="0.01" value="0" />
+          </label>
+          <label>
+            Foto da atividade
+            <input type="file" name="photo" accept="image/*" />
+          </label>
+          <label>
+            Observações
+            <textarea name="notes" rows="2"></textarea>
+          </label>
+          <button type="submit">Salvar atividade</button>
+        </form>
+
+        <div class="card">
+          <h3>Filtros de atividades</h3>
+          <div class="filters-grid">
+            <label>
+              Status
+              <select id="filterStatus">
+                <option value="all">Todos</option>
+                <option value="pending">Pendentes</option>
+                <option value="done">Concluídas</option>
+              </select>
+            </label>
+            <label>
+              Cultura
+              <select id="filterCulture">
+                <option value="all">Todas</option>
+              </select>
+            </label>
+            <label>
+              Data inicial
+              <input type="date" id="filterStartDate" />
+            </label>
+            <label>
+              Data final
+              <input type="date" id="filterEndDate" />
+            </label>
+          </div>
+          <button id="clearFiltersBtn" type="button">Limpar filtros</button>
+        </div>
+
+        <div class="card">
+          <h3>Lista de atividades</h3>
+          <ul id="activitiesList"></ul>
+        </div>
+
+        <div class="card">
+          <h3>Linha do tempo por cultura</h3>
+          <div id="historyTimeline"></div>
         </div>
       </section>
 
       <section id="alertas" class="screen">
         <h2>Alertas</h2>
         <div class="card">
+          <p id="alertChannel">Canal visual ativo. Alertas por e-mail: em breve.</p>
           <ul id="alertsList"></ul>
         </div>
       </section>

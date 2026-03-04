@@ -35,7 +35,7 @@ nav button {
   border: 1px solid #d5e4dd;
   background: #ffffff;
   color: #2f5d50;
-  padding: 8px 12px;
+  padding: 10px 14px;
   cursor: pointer;
 }
 
@@ -62,11 +62,31 @@ main {
   border: 1px solid #d9e2dd;
   padding: 14px;
   margin-bottom: 14px;
+  border-radius: 10px;
 }
 
 .form-grid {
   display: grid;
   gap: 10px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.kpi-card h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.kpi-value {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2f5d50;
 }
 
 label {
@@ -75,15 +95,22 @@ label {
 }
 
 input,
+select,
 textarea,
 button {
-  padding: 8px;
+  padding: 10px;
   font: inherit;
 }
 
 ul {
   margin: 0;
   padding-left: 18px;
+}
+
+.button-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .calendar-header {
@@ -128,4 +155,65 @@ ul {
   margin-top: 4px;
   display: block;
   font-size: 0.75rem;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+#activitiesList li {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #d9e2dd;
+}
+
+.activity-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.timeline-item {
+  border-left: 3px solid #7cb497;
+  padding-left: 10px;
+  margin-bottom: 12px;
+}
+
+.timeline-item h4 {
+  margin: 0 0 6px;
+}
+
+@media (max-width: 768px) {
+  main {
+    margin: 14px auto;
+    padding: 0 10px;
+  }
+
+  .kpi-grid,
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  nav {
+    width: 100%;
+  }
+
+  nav button {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .day-name,
+  .day-cell {
+    min-height: 52px;
+    font-size: 0.78rem;
+  }
+
+  button {
+    min-height: 42px;
+  }
 }

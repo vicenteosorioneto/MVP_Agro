@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "id": 1772646905854,
+    "name": "Milho",
+    "plantingDate": "2026-11-20",
+    "harvestDate": "2027-03-02",
+    "notes": "Milho verde"
+  },
+  {
+    "id": 1772647730063,
+    "name": "Feijão",
+    "plantingDate": "2026-03-10",
+    "harvestDate": "2026-05-10",
+    "notes": "Ter cuidado com as pragas e se tiver aplicar inseticidas",
+    "expectedRevenue": 4000
+  }
+]
