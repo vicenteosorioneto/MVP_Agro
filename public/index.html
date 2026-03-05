@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div class="page-glow" aria-hidden="true"></div>
     <header class="topbar">
       <h1>MVP Agro</h1>
       <nav>
@@ -20,6 +21,23 @@
 
     <main>
       <section id="inicial" class="screen active">
+        <section class="hero card">
+          <div class="hero-content">
+            <p class="hero-tag">Gestao inteligente no campo</p>
+            <h2>Painel de safra com foco em alho e plantio</h2>
+            <p>
+              Acompanhe clima, atividades e resultados em uma visao clara para tomar decisoes rapidas no dia a dia.
+            </p>
+          </div>
+          <div class="hero-image-wrap">
+            <img
+              class="hero-image"
+              src="images/hero-tractor.jpg"
+              alt="Trator trabalhando em plantacao no campo"
+            />
+          </div>
+        </section>
+
         <h2>Dashboard</h2>
         <div class="kpi-grid">
           <article class="card kpi-card">
@@ -49,6 +67,33 @@
             <button id="exportPdfBtn">Exportar PDF</button>
           </div>
         </div>
+
+        <section class="image-gallery card">
+          <h3>Inspiração de manejo</h3>
+          <div class="gallery-grid">
+            <figure>
+              <img
+                src="images/garlic-harvest.jpg"
+                alt="Maos segurando bulbos de alho colhidos"
+              />
+              <figcaption>Colheita de alho com bulbos saudaveis</figcaption>
+            </figure>
+            <figure>
+              <img
+                src="images/plantation-rows.jpg"
+                alt="Plantacao em fileiras com solo preparado"
+              />
+              <figcaption>Plantio organizado para melhor produtividade</figcaption>
+            </figure>
+            <figure>
+              <img
+                src="images/tractor-field.jpg"
+                alt="Trator em atividade no campo durante a safra"
+              />
+              <figcaption>Operacao com trator para apoio ao manejo da safra</figcaption>
+            </figure>
+          </div>
+        </section>
       </section>
 
       <section id="culturas" class="screen">
@@ -85,6 +130,14 @@
         <div class="card">
           <h3>Margem estimada por cultura</h3>
           <ul id="financialSummaryList"></ul>
+        </div>
+
+        <div class="card culture-banner">
+          <img
+            src="images/culture-banner.jpg"
+            alt="Area de plantacao com culturas em desenvolvimento"
+          />
+          <p>Organize datas de plantio e colheita para manter o cronograma da lavoura sempre em dia.</p>
         </div>
       </section>
 
