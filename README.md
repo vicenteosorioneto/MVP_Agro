@@ -1,6 +1,6 @@
 # MVP Agro
 
-MVP web para pequenos produtores rurais, com foco em planejamento agrícola orientado por clima, organização operacional e visão rápida de produtividade.
+MVP web para pequenos produtores rurais, com foco no planejamento da lavoura orientado por clima, organização da rotina e visao rapida da produtividade.
 
 ## O que foi adicionado nesta evolução
 
