@@ -4,7 +4,14 @@ async function apiRequest(endpoint, options = {}) {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
 
   if (!response.ok) {
-    throw new Error('Erro na requisição da API');
+    let errorMessage = `Erro ${response.status}`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      // Se a resposta não for JSON válido, usa a mensagem padrão
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();
