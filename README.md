@@ -167,6 +167,6 @@ Payload JSON (sem foto):
 
 ## Observações
 
-- Os dados continuam persistidos localmente em JSON na pasta `data/`.
-- Uploads de imagens são salvos na pasta `uploads/`.
+- O frontend consome a API externa em `http://localhost:5000/api`.
+- A implementação backend local foi removida do frontend; os arquivos `server.js`, `data/` e `uploads/` não fazem parte desta versão.
 - Para ambiente de produção, recomenda-se adicionar autenticação, storage externo para arquivos e serviço real de e-mail para alertas.

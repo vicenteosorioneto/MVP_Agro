@@ -82,12 +82,7 @@ function getFiltersQueryString() {
 }
 
 async function loadWeather() {
-  const response = await fetch("/api/weather");
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Erro ao carregar clima.");
-  }
+  const data = await apiGet("/weather");
 
   homeWeather.textContent = `${data.current.temperature}${data.current.unitTemperature} | Precipitação: ${data.current.precipitation}${data.current.unitPrecipitation} | Umidade: ${data.current.humidity}${data.current.unitHumidity}`;
 
@@ -110,12 +105,7 @@ async function loadWeather() {
 }
 
 async function loadDashboard() {
-  const response = await fetch("/api/dashboard");
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Erro ao carregar dashboard.");
-  }
+  const data = await apiGet("/dashboard");
 
   kpiPending.textContent = data.pendingActivities;
   kpiRisk.textContent = data.atRiskCultures;
@@ -123,8 +113,7 @@ async function loadDashboard() {
 }
 
 async function loadCultures() {
-  const response = await fetch("/api/cultures");
-  cultures = await response.json();
+  cultures = await apiGet("/cultures");
 
   culturesList.innerHTML = "";
   cultures.forEach((culture) => {
@@ -152,8 +141,7 @@ async function loadCultures() {
 }
 
 async function loadActivities() {
-  const response = await fetch(`/api/activities${getFiltersQueryString()}`);
-  activities = await response.json();
+  activities = await apiGet(`/activities${getFiltersQueryString()}`);
 
   activitiesList.innerHTML = "";
 
@@ -189,11 +177,7 @@ async function loadActivities() {
       doneButton.type = "button";
       doneButton.textContent = "Marcar como concluída";
       doneButton.addEventListener("click", async () => {
-        await fetch(`/api/activities/${activity.id}/status`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "done" }),
-        });
+        await apiPatchJson(`/activities/${activity.id}/status`, { status: "done" });
 
         await refreshData();
       });
@@ -208,8 +192,7 @@ async function loadActivities() {
 }
 
 async function loadHistory() {
-  const response = await fetch("/api/history");
-  const data = await response.json();
+  const data = await apiGet("/history");
 
   historyTimeline.innerHTML = "";
 
@@ -240,8 +223,7 @@ async function loadHistory() {
 }
 
 async function loadFinancialSummary() {
-  const response = await fetch("/api/financial-summary");
-  const data = await response.json();
+  const data = await apiGet("/financial-summary");
 
   financialSummaryList.innerHTML = "";
   data.forEach((item) => {
@@ -328,15 +310,10 @@ cultureForm.addEventListener("submit", async (event) => {
     notes: formData.get("notes"),
   };
 
-  const response = await fetch("/api/cultures", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    alert(errorData.error || "Erro ao salvar cultura.");
+  try {
+    await apiPostJson("/cultures", payload);
+  } catch (error) {
+    alert(error.message || "Erro ao salvar cultura.");
     return;
   }
 
@@ -348,14 +325,10 @@ activityForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const formData = new FormData(activityForm);
-  const response = await fetch("/api/activities", {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    alert(errorData.error || "Erro ao adicionar atividade.");
+  try {
+    await apiPostForm("/activities", formData);
+  } catch (error) {
+    alert(error.message || "Erro ao adicionar atividade.");
     return;
   }
 
@@ -387,11 +360,11 @@ clearFiltersBtn.addEventListener("click", async () => {
 });
 
 exportCsvBtn.addEventListener("click", () => {
-  window.open("/api/export/csv", "_blank");
+  apiOpenUrl("/export/csv");
 });
 
 exportPdfBtn.addEventListener("click", () => {
-  window.open("/api/export/pdf", "_blank");
+  apiOpenUrl("/export/pdf");
 });
 
 async function refreshData() {

@@ -1,26 +1,14 @@
 {
-  "name": "mvp_agro",
+  "name": "mvp_agro-frontend",
   "version": "1.0.0",
-  "description": "MVP agro com clima, culturas e calendário",
-  "main": "server.js",
+  "description": "Frontend do MVP Agro consumindo API externa.",
   "scripts": {
-    "start": "node server.js"
+    "start": "npx serve public"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/vicenteosorioneto/MVP_Agro.git"
-  },
-  "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/vicenteosorioneto/MVP_Agro/issues"
-  },
-  "homepage": "https://github.com/vicenteosorioneto/MVP_Agro#readme",
-  "dependencies": {
-    "express": "^5.2.1",
-    "multer": "^2.1.1",
-    "pdfkit": "^0.17.2"
+  "dependencies": {},
+  "devDependencies": {
+    "serve": "^14.2.0"
   }
 }
