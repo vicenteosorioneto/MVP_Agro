@@ -46,12 +46,6 @@ $$
 - Upload opcional de imagem em cada atividade
 - Arquivos servidos em `/uploads`
 
-### Melhorias de UX mobile
-
-- Botões maiores
-- Layout responsivo para cards, KPIs e filtros
-- Melhor leitura em telas menores
-
 ## Tecnologias
 
 - JavaScript
