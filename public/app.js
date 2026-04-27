@@ -1,3 +1,16 @@
+import {
+  getCultures,
+  createCulture,
+  getActivities,
+  createActivity,
+  getDashboard,
+  getWeather,
+  getHistory,
+  getFinancialSummary,
+  updateActivityStatus,
+  openUrl,
+} from "./service/api.js";
+
 const screens = document.querySelectorAll(".screen");
 const navButtons = document.querySelectorAll("nav button");
 
@@ -82,7 +95,7 @@ function getFiltersQueryString() {
 }
 
 async function loadWeather() {
-  const data = await apiGet("/weather");
+  const data = await getWeather();
 
   homeWeather.textContent = `${data.current.temperature}${data.current.unitTemperature} | Precipitação: ${data.current.precipitation}${data.current.unitPrecipitation} | Umidade: ${data.current.humidity}${data.current.unitHumidity}`;
 
@@ -105,7 +118,7 @@ async function loadWeather() {
 }
 
 async function loadDashboard() {
-  const data = await apiGet("/dashboard");
+  const data = await getDashboard();
 
   kpiPending.textContent = data.pendingActivities;
   kpiRisk.textContent = data.atRiskCultures;
@@ -113,7 +126,7 @@ async function loadDashboard() {
 }
 
 async function loadCultures() {
-  cultures = await apiGet("/cultures");
+  cultures = await getCultures();
 
   culturesList.innerHTML = "";
   cultures.forEach((culture) => {
@@ -141,7 +154,7 @@ async function loadCultures() {
 }
 
 async function loadActivities() {
-  activities = await apiGet(`/activities${getFiltersQueryString()}`);
+  activities = await getActivities(getFiltersQueryString());
 
   activitiesList.innerHTML = "";
 
@@ -177,7 +190,7 @@ async function loadActivities() {
       doneButton.type = "button";
       doneButton.textContent = "Marcar como concluída";
       doneButton.addEventListener("click", async () => {
-        await apiPatchJson(`/activities/${activity.id}/status`, { status: "done" });
+        await updateActivityStatus(activity.id, "done");
 
         await refreshData();
       });
@@ -192,7 +205,7 @@ async function loadActivities() {
 }
 
 async function loadHistory() {
-  const data = await apiGet("/history");
+  const data = await getHistory();
 
   historyTimeline.innerHTML = "";
 
@@ -223,7 +236,7 @@ async function loadHistory() {
 }
 
 async function loadFinancialSummary() {
-  const data = await apiGet("/financial-summary");
+  const data = await getFinancialSummary();
 
   financialSummaryList.innerHTML = "";
   data.forEach((item) => {
@@ -311,7 +324,7 @@ cultureForm.addEventListener("submit", async (event) => {
   };
 
   try {
-    await apiPostJson("/cultures", payload);
+    await createCulture(payload);
   } catch (error) {
     alert(error.message || "Erro ao salvar cultura.");
     return;
@@ -325,8 +338,18 @@ activityForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const formData = new FormData(activityForm);
+  const payload = {
+    date: formData.get("date"),
+    title: formData.get("title"),
+    cultureId: formData.get("cultureId") || null,
+    assignee: formData.get("assignee"),
+    status: formData.get("status"),
+    cost: Number(formData.get("cost") || 0),
+    notes: formData.get("notes"),
+  };
+
   try {
-    await apiPostForm("/activities", formData);
+    await createActivity(payload);
   } catch (error) {
     alert(error.message || "Erro ao adicionar atividade.");
     return;
@@ -360,11 +383,11 @@ clearFiltersBtn.addEventListener("click", async () => {
 });
 
 exportCsvBtn.addEventListener("click", () => {
-  apiOpenUrl("/export/csv");
+  openUrl("/export/csv");
 });
 
 exportPdfBtn.addEventListener("click", () => {
-  apiOpenUrl("/export/pdf");
+  openUrl("/export/pdf");
 });
 
 async function refreshData() {

@@ -43,33 +43,30 @@ $$
 
 ### Evidência por foto da atividade
 
-- Upload opcional de imagem em cada atividade
-- Arquivos servidos em `/uploads`
+- Upload opcional de imagem em cada atividade (via API externa)
+- Armazenamento de mídia gerenciado pelo backend externo
 
 ## Tecnologias
 
-- JavaScript
-- Node.js
-- Express
-- Multer (upload de imagens)
-- PDFKit (geração de PDF)
 - Frontend HTML + CSS + JS puro
+- Módulos ES6 para serviços (`public/service/api.js`)
+- `serve` para servir os arquivos estáticos
 - Open-Meteo API (sem chave)
 
 ## Estrutura do projeto
 
 ```text
 MVP_Agro/
-├─ data/
-│  ├─ activities.json
-│  └─ cultures.json
+├─ node_modules/
+├─ package-lock.json
+├─ package.json
 ├─ public/
 │  ├─ app.js
 │  ├─ index.html
-│  └─ styles.css
-├─ uploads/
-├─ server.js
-├─ package.json
+│  ├─ service/
+│  │  └─ api.js
+│  ├─ styles.css
+│  └─ images/
 └─ README.md
 ```
 
@@ -86,17 +83,15 @@ MVP_Agro/
 npm install
 ```
 
-2. Inicie o servidor:
+2. Inicie o frontend:
 
 ```bash
 npm start
 ```
 
-3. Acesse no navegador:
+3. Abra o endereço exibido pelo `serve` no terminal (normalmente `http://localhost:5000`).
 
-```text
-http://localhost:3000
-```
+> O frontend consome a API externa em `http://localhost:5000/api`.
 
 ## Endpoints da API
 
