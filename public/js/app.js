@@ -10,8 +10,10 @@ import { initReports }    from './reports.js';
 import { closeModal }     from './utils.js';
 
 // ── Auth guard ──────────────────────────────────────────────────────────────
+// Para desativar temporariamente (sem backend de auth), mude para: const DEV_BYPASS = true;
+const DEV_BYPASS = false;
 const user = getCurrentUser();
-if (!user) { window.location.href = '/index.html'; }
+if (!DEV_BYPASS && !user) { window.location.href = '/index.html'; }
 
 // ── User display ────────────────────────────────────────────────────────────
 if (user) {
