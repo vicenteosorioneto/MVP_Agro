@@ -32,10 +32,13 @@ function renderTable() {
     tbody.innerHTML = `<tr><td colspan="7">${emptyState('🌾', 'Nenhuma cultura', 'Clique em "+ Nova cultura" para adicionar.')}</td></tr>`;
     return;
   }
-  tbody.innerHTML = cultures.map(c => `
+  const props = getPropertiesCache();
+  tbody.innerHTML = cultures.map(c => {
+    const prop = props.find(p => (p.id || p._id) === c.propertyId);
+    return `
     <tr>
       <td><strong>${c.name}</strong></td>
-      <td>${c.propertyName || c.property?.name || '-'}</td>
+      <td>${prop?.name || c.propertyName || c.property?.name || '-'}</td>
       <td>${statusBadge(c.status)}</td>
       <td>${formatDate(c.plantingDate)}</td>
       <td>${formatDate(c.harvestDate)}</td>
@@ -44,7 +47,8 @@ function renderTable() {
         <button class="btn btn-secondary btn-sm" data-edit="${c.id || c._id}">Editar</button>
         <button class="btn btn-danger btn-sm" data-delete="${c.id || c._id}" data-name="${c.name}">Excluir</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 export function populateCultureSelects(selects) {
