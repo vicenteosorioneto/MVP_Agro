@@ -1,5 +1,6 @@
 import { getActivities, createActivity, updateActivity, deleteActivity, completeActivity } from '../service/api.js';
 import { showToast, emptyState, confirmDelete, openModal, closeModal, formatDate, formatCurrency, statusBadge } from './utils.js';
+import { getCulturesCache } from './cultures.js';
 
 let activities = [];
 
@@ -63,7 +64,7 @@ function renderTable() {
 }
 
 export function initActivities(cultures, properties) {
-  document.getElementById('newActivityBtn')?.addEventListener('click', () => openActivityModal(null, cultures));
+  document.getElementById('newActivityBtn')?.addEventListener('click', () => openActivityModal(null));
   document.getElementById('saveActivityBtn')?.addEventListener('click', saveActivity);
   document.getElementById('cancelActivityModal')?.addEventListener('click', () => closeModal('activityModal'));
 
@@ -86,7 +87,7 @@ export function initActivities(cultures, properties) {
       try { await completeActivity(completeId); showToast('Atividade concluída!', 'success'); loadActivities(); }
       catch (err) { showToast('Erro: ' + err.message); e.target.disabled = false; }
     }
-    if (editId)  openActivityModal(editId, cultures);
+    if (editId)  openActivityModal(editId);
     if (delId) {
       confirmDelete('Excluir atividade', `Excluir "${e.target.dataset.name}"?`, async () => {
         try { await deleteActivity(delId); showToast('Atividade excluída.', 'success'); loadActivities(); }
@@ -121,7 +122,7 @@ export function populateActivityFilters(cultures, properties) {
   }
 }
 
-function openActivityModal(id, cultures) {
+function openActivityModal(id) {
   const a = id ? activities.find(x => (x.id || x._id) === id) : null;
   document.getElementById('activityModalTitle').textContent = a ? 'Editar Atividade' : 'Nova Atividade';
   document.getElementById('activityId').value   = a?.id || a?._id || '';
@@ -134,7 +135,7 @@ function openActivityModal(id, cultures) {
 
   const sel = document.getElementById('actCulture');
   sel.innerHTML = '<option value="">Sem cultura</option>';
-  (cultures || []).forEach(c => { const o = document.createElement('option'); o.value = c.id||c._id; o.textContent = c.name; sel.appendChild(o); });
+  getCulturesCache().forEach(c => { const o = document.createElement('option'); o.value = c.id||c._id; o.textContent = c.name; sel.appendChild(o); });
   sel.value = a?.cultureId || a?.culture?._id || a?.culture?.id || '';
 
   openModal('activityModal');

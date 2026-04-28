@@ -1,5 +1,6 @@
 import { getCultures, createCulture, updateCulture, deleteCulture } from '../service/api.js';
 import { showToast, emptyState, confirmDelete, openModal, closeModal, formatDate, formatCurrency, statusBadge } from './utils.js';
+import { getPropertiesCache } from './properties.js';
 
 let cultures = [];
 
@@ -61,9 +62,9 @@ export function populateCultureSelects(selects) {
   });
 }
 
-export function initCultures(properties) {
-  document.getElementById('newCultureBtn')?.addEventListener('click', () => openCultureModal(null, properties));
-  document.getElementById('saveCultureBtn')?.addEventListener('click', () => saveCulture(properties));
+export function initCultures() {
+  document.getElementById('newCultureBtn')?.addEventListener('click', () => openCultureModal(null));
+  document.getElementById('saveCultureBtn')?.addEventListener('click', () => saveCulture());
   document.getElementById('cancelCultureModal')?.addEventListener('click', () => closeModal('cultureModal'));
 
   document.getElementById('filterCultureProp')?.addEventListener('change', loadCultures);
@@ -78,7 +79,7 @@ export function initCultures(properties) {
   document.getElementById('culturesTableBody')?.addEventListener('click', e => {
     const editId = e.target.dataset.edit;
     const delId  = e.target.dataset.delete;
-    if (editId)  openCultureModal(editId, properties);
+    if (editId)  openCultureModal(editId);
     if (delId) {
       confirmDelete('Excluir cultura', `Excluir "${e.target.dataset.name}"?`, async () => {
         try { await deleteCulture(delId); showToast('Cultura excluída.', 'success'); loadCultures(); }
@@ -99,7 +100,7 @@ export function populatePropertyFilter(props) {
   });
 }
 
-function openCultureModal(id, properties) {
+function openCultureModal(id) {
   const c = id ? cultures.find(x => (x.id || x._id) === id) : null;
   document.getElementById('cultureModalTitle').textContent = c ? 'Editar Cultura' : 'Nova Cultura';
   document.getElementById('cultureId').value       = c?.id || c?._id || '';
@@ -112,7 +113,7 @@ function openCultureModal(id, properties) {
 
   const propSel = document.getElementById('cultureProperty');
   propSel.innerHTML = '<option value="">Selecione</option>';
-  (properties || []).forEach(p => {
+  getPropertiesCache().forEach(p => {
     const o = document.createElement('option');
     o.value = p.id || p._id; o.textContent = p.name;
     propSel.appendChild(o);

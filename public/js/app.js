@@ -121,7 +121,7 @@ async function init() {
 
   // Wire up modules
   initProperties();
-  initCultures(props);
+  initCultures();
   initActivities(cultures, props);
   initAlerts();
   initHistory();
