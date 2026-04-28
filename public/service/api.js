@@ -1,77 +1,125 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
-async function apiRequest(endpoint, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-
-  if (!response.ok) {
-    let errorMessage = `Erro ${response.status}`;
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.error || errorData.message || errorMessage;
-    } catch {
-      // Se a resposta não for JSON válido, usa a mensagem padrão
-    }
-    throw new Error(errorMessage);
-  }
-
-  return response.json();
+function getToken() {
+  return localStorage.getItem('agro_token');
 }
 
-export const getCultures = () => apiRequest('/cultures');
+function authHeaders() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
-export const createCulture = (data) =>
-  apiRequest('/cultures', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+async function request(method, path, body = null, isFormData = false) {
+  const headers = { ...authHeaders() };
+  if (body && !isFormData) headers['Content-Type'] = 'application/json';
 
-export const updateCulture = (id, data) =>
-  apiRequest(`/cultures/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+  const options = { method, headers };
+  if (body) options.body = isFormData ? body : JSON.stringify(body);
 
-export const deleteCulture = (id) =>
-  apiRequest(`/cultures/${id}`, {
-    method: 'DELETE',
-  });
+  const res = await fetch(`${API_BASE_URL}${path}`, options);
 
-export const getActivities = (query = '') => apiRequest(`/activities${query}`);
+  if (res.status === 401) {
+    localStorage.removeItem('agro_token');
+    localStorage.removeItem('agro_user');
+    window.location.href = '/index.html';
+    return;
+  }
 
-export const createActivity = (data) =>
-  apiRequest('/activities', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+  if (!res.ok) {
+    let msg = `Erro ${res.status}`;
+    try { const d = await res.json(); msg = d.message || d.error || msg; } catch {}
+    throw new Error(msg);
+  }
 
-export const updateActivity = (id, data) =>
-  apiRequest(`/activities/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+  if (res.status === 204) return null;
 
-export const deleteActivity = (id) =>
-  apiRequest(`/activities/${id}`, {
-    method: 'DELETE',
-  });
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) return res.json();
+  return res.blob();
+}
 
-export const updateActivityStatus = (id, status) =>
-  apiRequest(`/activities/${id}/status`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  });
+// Auth
+export async function login(email, password) {
+  const data = await request('POST', '/auth/login', { email, password });
+  if (data?.token) localStorage.setItem('agro_token', data.token);
+  if (data?.user) localStorage.setItem('agro_user', JSON.stringify(data.user));
+  return data;
+}
 
-export const getDashboard = () => apiRequest('/dashboard');
+export async function register(name, email, password) {
+  return request('POST', '/auth/register', { name, email, password });
+}
 
-export const getWeather = () => apiRequest('/weather');
+export function logout() {
+  localStorage.removeItem('agro_token');
+  localStorage.removeItem('agro_user');
+  window.location.href = '/index.html';
+}
 
-export const getHistory = () => apiRequest('/history');
+export function getCurrentUser() {
+  try { return JSON.parse(localStorage.getItem('agro_user')); } catch { return null; }
+}
 
-export const getFinancialSummary = () => apiRequest('/financial-summary');
+// Properties
+export function getProperties() { return request('GET', '/properties'); }
+export function createProperty(data) { return request('POST', '/properties', data); }
+export function updateProperty(id, data) { return request('PUT', `/properties/${id}`, data); }
+export function deleteProperty(id) { return request('DELETE', `/properties/${id}`); }
 
-export const openUrl = (endpoint) => window.open(`${API_BASE_URL}${endpoint}`, '_blank');
+// Cultures
+export function getCultures(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request('GET', `/cultures${qs ? '?' + qs : ''}`);
+}
+export function createCulture(data) { return request('POST', '/cultures', data); }
+export function updateCulture(id, data) { return request('PUT', `/cultures/${id}`, data); }
+export function deleteCulture(id) { return request('DELETE', `/cultures/${id}`); }
+
+// Activities
+export function getActivities(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request('GET', `/activities${qs ? '?' + qs : ''}`);
+}
+export function createActivity(formData) { return request('POST', '/activities', formData, true); }
+export function updateActivity(id, data) { return request('PUT', `/activities/${id}`, data); }
+export function deleteActivity(id) { return request('DELETE', `/activities/${id}`); }
+export function completeActivity(id) { return request('PATCH', `/activities/${id}/status`, { status: 'concluida' }); }
+
+// Dashboard
+export function getDashboard() { return request('GET', '/dashboard'); }
+
+// Finance
+export function getFinance() { return request('GET', '/finance'); }
+
+// Alerts
+export function getAlerts() { return request('GET', '/alerts'); }
+export function generateAlerts() { return request('POST', '/alerts/generate'); }
+export function markAlertAsRead(id) { return request('PATCH', `/alerts/${id}/read`); }
+export function deleteAlert(id) { return request('DELETE', `/alerts/${id}`); }
+
+// History
+export function getHistory(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request('GET', `/history${qs ? '?' + qs : ''}`);
+}
+
+// Files
+export function uploadFile(formData) { return request('POST', '/files/upload', formData, true); }
+export function deleteFile(id) { return request('DELETE', `/files/${id}`); }
+
+// Reports
+export async function downloadPdf() {
+  const blob = await request('GET', '/reports/pdf');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'relatorio.pdf'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadCsv() {
+  const blob = await request('GET', '/reports/csv');
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'relatorio.csv'; a.click();
+  URL.revokeObjectURL(url);
+}

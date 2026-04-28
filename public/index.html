@@ -1,261 +1,125 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MVP Agro</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="page-glow" aria-hidden="true"></div>
-    <header class="topbar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MVP Agro — Entrar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-bg">
+    <div class="auth-brand">
+      <div class="auth-logo">🌱</div>
       <h1>MVP Agro</h1>
-      <nav>
-        <button data-screen="inicial" class="active">Dashboard</button>
-        <button data-screen="culturas">Culturas</button>
-        <button data-screen="clima">Clima</button>
-        <button data-screen="calendario">Calendário</button>
-        <button data-screen="alertas">Alertas</button>
-      </nav>
-    </header>
+      <p>Gestão inteligente do campo</p>
+    </div>
+  </div>
 
-    <main>
-      <section id="inicial" class="screen active">
-        <section class="hero card">
-          <div class="hero-content">
-            <p class="hero-tag">Gestao inteligente no campo</p>
-            <h2>Painel de safra com foco em planejamento de plantio</h2>
-            <p>
-              Acompanhe clima, atividades e resultados em uma visao clara para tomar decisoes rapidas no dia a dia.
-            </p>
+  <div class="auth-panel">
+    <div class="auth-box">
+      <div id="toast" class="toast hidden"></div>
+
+      <!-- Login -->
+      <div id="loginView">
+        <h2>Entrar</h2>
+        <p class="auth-sub">Bem-vindo de volta ao seu painel agrícola</p>
+        <form id="loginForm">
+          <div class="field">
+            <label>E-mail</label>
+            <input type="email" name="email" placeholder="seu@email.com" required />
           </div>
-          <div class="hero-image-wrap">
-            <img
-              class="hero-image"
-              src="images/hero-tractor.jpg"
-              alt="Trator trabalhando em plantacao no campo"
-            />
+          <div class="field">
+            <label>Senha</label>
+            <input type="password" name="password" placeholder="••••••••" required />
           </div>
-        </section>
-
-        <h2>Dashboard</h2>
-        <div class="kpi-grid">
-          <article class="card kpi-card">
-            <h3>Atividades pendentes</h3>
-            <p id="kpiPending" class="kpi-value">-</p>
-          </article>
-          <article class="card kpi-card">
-            <h3>Culturas em risco</h3>
-            <p id="kpiRisk" class="kpi-value">-</p>
-          </article>
-          <article class="card kpi-card">
-            <h3>Produtividade semanal</h3>
-            <p id="kpiProductivity" class="kpi-value">-</p>
-          </article>
-        </div>
-
-        <div class="card">
-          <h3>Resumo do clima atual</h3>
-          <p id="homeWeather">Carregando...</p>
-          <button id="consultarPrevisaoBtn">Consultar previsão</button>
-        </div>
-
-        <div class="card">
-          <h3>Exportação de relatórios</h3>
-          <div class="button-row">
-            <button id="exportCsvBtn">Exportar CSV</button>
-            <button id="exportPdfBtn">Exportar PDF</button>
-          </div>
-        </div>
-
-        <section class="image-gallery card">
-          <h3>Inspiração de manejo</h3>
-          <div class="gallery-grid">
-            <figure>
-              <img
-                src="images/culture-banner.jpg"
-                alt="Lavoura em desenvolvimento com foco no manejo"
-              />
-              <figcaption>Lavoura em desenvolvimento com manejo planejado</figcaption>
-            </figure>
-            <figure>
-              <img
-                src="images/plantation-rows.jpg"
-                alt="Plantacao em fileiras com solo preparado"
-              />
-              <figcaption>Plantio organizado para melhor produtividade</figcaption>
-            </figure>
-            <figure>
-              <img
-                src="images/tractor-field.jpg"
-                alt="Trator em atividade no campo durante a safra"
-              />
-              <figcaption>Operacao com trator para apoio ao manejo da safra</figcaption>
-            </figure>
-          </div>
-        </section>
-      </section>
-
-      <section id="culturas" class="screen">
-        <h2>Cadastro de Cultura</h2>
-        <form id="cultureForm" class="card form-grid">
-          <label>
-            Nome da cultura
-            <input type="text" name="name" required />
-          </label>
-          <label>
-            Data de plantio
-            <input type="date" name="plantingDate" required />
-          </label>
-          <label>
-            Data prevista de colheita
-            <input type="date" name="harvestDate" required />
-          </label>
-          <label>
-            Receita prevista (R$)
-            <input type="number" name="expectedRevenue" min="0" step="0.01" value="0" />
-          </label>
-          <label>
-            Observações
-            <textarea name="notes" rows="3"></textarea>
-          </label>
-          <button type="submit">Salvar</button>
+          <button type="submit" class="btn btn-primary btn-full" id="loginBtn">Entrar</button>
         </form>
+        <p class="auth-switch">Não tem conta? <a href="#" id="goRegister">Cadastrar-se</a></p>
+      </div>
 
-        <div class="card">
-          <h3>Culturas cadastradas</h3>
-          <ul id="culturesList"></ul>
-        </div>
-
-        <div class="card">
-          <h3>Margem estimada por cultura</h3>
-          <ul id="financialSummaryList"></ul>
-        </div>
-
-        <div class="card culture-banner">
-          <img
-            src="images/culture-banner.jpg"
-            alt="Area de plantacao com culturas em desenvolvimento"
-          />
-          <p>Organize datas de plantio e colheita para manter o cronograma da lavoura sempre em dia.</p>
-        </div>
-      </section>
-
-      <section id="clima" class="screen">
-        <h2>Previsão do Tempo</h2>
-        <div class="card">
-          <p><strong>Temperatura atual:</strong> <span id="currentTemp">-</span></p>
-          <p><strong>Precipitação prevista:</strong> <span id="currentPrecip">-</span></p>
-        </div>
-        <div class="card">
-          <h3>Próximos dias</h3>
-          <ul id="forecastList"></ul>
-        </div>
-      </section>
-
-      <section id="calendario" class="screen">
-        <h2>Calendário e Atividades</h2>
-        <div class="card">
-          <div class="calendar-header">
-            <button id="prevMonthBtn">&lt;</button>
-            <h3 id="calendarTitle"></h3>
-            <button id="nextMonthBtn">&gt;</button>
+      <!-- Register -->
+      <div id="registerView" class="hidden">
+        <h2>Criar conta</h2>
+        <p class="auth-sub">Comece a gerenciar sua propriedade rural</p>
+        <form id="registerForm">
+          <div class="field">
+            <label>Nome completo</label>
+            <input type="text" name="name" placeholder="João Silva" required />
           </div>
-          <div id="calendarGrid" class="calendar-grid"></div>
-        </div>
-
-        <form id="activityForm" class="card form-grid" enctype="multipart/form-data">
-          <h3>Adicionar atividade</h3>
-          <label>
-            Data
-            <input type="date" name="date" required />
-          </label>
-          <label>
-            Atividade
-            <input type="text" name="title" required />
-          </label>
-          <label>
-            Cultura
-            <select id="activityCulture" name="cultureId">
-              <option value="">Sem cultura</option>
-            </select>
-          </label>
-          <label>
-            Responsável
-            <input type="text" name="assignee" placeholder="Ex: João" />
-          </label>
-          <label>
-            Status
-            <select name="status">
-              <option value="pending">Pendente</option>
-              <option value="done">Concluída</option>
-            </select>
-          </label>
-          <label>
-            Custo (R$)
-            <input type="number" name="cost" min="0" step="0.01" value="0" />
-          </label>
-          <label>
-            Foto da atividade
-            <input type="file" name="photo" accept="image/*" />
-          </label>
-          <label>
-            Observações
-            <textarea name="notes" rows="2"></textarea>
-          </label>
-          <button type="submit">Salvar atividade</button>
+          <div class="field">
+            <label>E-mail</label>
+            <input type="email" name="email" placeholder="seu@email.com" required />
+          </div>
+          <div class="field">
+            <label>Senha</label>
+            <input type="password" name="password" placeholder="Mínimo 6 caracteres" minlength="6" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" id="registerBtn">Criar conta</button>
         </form>
+        <p class="auth-switch">Já tem conta? <a href="#" id="goLogin">Entrar</a></p>
+      </div>
+    </div>
+  </div>
 
-        <div class="card">
-          <h3>Filtros de atividades</h3>
-          <div class="filters-grid">
-            <label>
-              Status
-              <select id="filterStatus">
-                <option value="all">Todos</option>
-                <option value="pending">Pendentes</option>
-                <option value="done">Concluídas</option>
-              </select>
-            </label>
-            <label>
-              Cultura
-              <select id="filterCulture">
-                <option value="all">Todas</option>
-              </select>
-            </label>
-            <label>
-              Data inicial
-              <input type="date" id="filterStartDate" />
-            </label>
-            <label>
-              Data final
-              <input type="date" id="filterEndDate" />
-            </label>
-          </div>
-          <button id="clearFiltersBtn" type="button">Limpar filtros</button>
-        </div>
+  <script type="module">
+    import { login, register, getCurrentUser } from './service/api.js';
 
-        <div class="card">
-          <h3>Lista de atividades</h3>
-          <ul id="activitiesList"></ul>
-        </div>
+    if (getCurrentUser()) window.location.href = '/app.html';
 
-        <div class="card">
-          <h3>Linha do tempo por cultura</h3>
-          <div id="historyTimeline"></div>
-        </div>
-      </section>
+    const loginView = document.getElementById('loginView');
+    const registerView = document.getElementById('registerView');
+    const toast = document.getElementById('toast');
 
-      <section id="alertas" class="screen">
-        <h2>Alertas</h2>
-        <div class="card">
-          <p id="alertChannel">Canal visual ativo. Alertas por e-mail: em breve.</p>
-          <ul id="alertsList"></ul>
-        </div>
-      </section>
-    </main>
+    function showToast(msg, type = 'error') {
+      toast.textContent = msg;
+      toast.className = `toast toast-${type}`;
+      setTimeout(() => toast.className = 'toast hidden', 4000);
+    }
 
-    <script src="api.js"></script>
-    <script type="module" src="app.js"></script>
-  </body>
-  </html>
+    document.getElementById('goRegister').addEventListener('click', e => {
+      e.preventDefault();
+      loginView.classList.add('hidden');
+      registerView.classList.remove('hidden');
+    });
+
+    document.getElementById('goLogin').addEventListener('click', e => {
+      e.preventDefault();
+      registerView.classList.add('hidden');
+      loginView.classList.remove('hidden');
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      const fd = new FormData(e.target);
+      btn.disabled = true; btn.textContent = 'Entrando...';
+      try {
+        await login(fd.get('email'), fd.get('password'));
+        window.location.href = '/app.html';
+      } catch (err) {
+        showToast(err.message);
+        btn.disabled = false; btn.textContent = 'Entrar';
+      }
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = document.getElementById('registerBtn');
+      const fd = new FormData(e.target);
+      btn.disabled = true; btn.textContent = 'Criando...';
+      try {
+        await register(fd.get('name'), fd.get('email'), fd.get('password'));
+        showToast('Conta criada! Faça login.', 'success');
+        registerView.classList.add('hidden');
+        loginView.classList.remove('hidden');
+        btn.disabled = false; btn.textContent = 'Criar conta';
+      } catch (err) {
+        showToast(err.message);
+        btn.disabled = false; btn.textContent = 'Criar conta';
+      }
+    });
+  </script>
+</body>
+</html>
