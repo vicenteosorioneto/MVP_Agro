@@ -1,5 +1,15 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// Migração de chaves legadas salvas por versões anteriores
+(function migrateLegacyToken() {
+  const legacy = localStorage.getItem('accessToken') || localStorage.getItem('token');
+  if (legacy && !localStorage.getItem('agro_token')) {
+    localStorage.setItem('agro_token', legacy);
+  }
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('token');
+})();
+
 function getToken() {
   return localStorage.getItem('agro_token');
 }
@@ -41,13 +51,28 @@ async function request(method, path, body = null, isFormData = false) {
 // Auth
 export async function login(email, password) {
   const data = await request('POST', '/auth/login', { email, password });
-  if (data?.token) localStorage.setItem('agro_token', data.token);
-  if (data?.user) localStorage.setItem('agro_user', JSON.stringify(data.user));
+
+  // Backend pode retornar token em qualquer um desses campos
+  const token = data?.token || data?.accessToken || data?.data?.token || data?.data?.accessToken;
+  const user  = data?.user  || data?.data?.user;
+
+  if (token) localStorage.setItem('agro_token', token);
+  if (user)  localStorage.setItem('agro_user', JSON.stringify(user));
+
   return data;
 }
 
 export async function register(name, email, password) {
-  return request('POST', '/auth/register', { name, email, password });
+  const data = await request('POST', '/auth/register', { name, email, password });
+
+  // Se o backend retornar token no cadastro, salvar e fazer login automático
+  const token = data?.token || data?.accessToken || data?.data?.token || data?.data?.accessToken;
+  const user  = data?.user  || data?.data?.user;
+
+  if (token) localStorage.setItem('agro_token', token);
+  if (user)  localStorage.setItem('agro_user', JSON.stringify(user));
+
+  return data;
 }
 
 export function logout() {
@@ -57,7 +82,15 @@ export function logout() {
 }
 
 export function getCurrentUser() {
-  try { return JSON.parse(localStorage.getItem('agro_user')); } catch { return null; }
+  try {
+    const user = JSON.parse(localStorage.getItem('agro_user'));
+    if (user) return user;
+    // Se só o token foi salvo (backend não retornou user), retornar objeto mínimo
+    const token = localStorage.getItem('agro_token');
+    return token ? { _tokenOnly: true } : null;
+  } catch {
+    return null;
+  }
 }
 
 // Properties

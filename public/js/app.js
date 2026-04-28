@@ -10,13 +10,14 @@ import { initReports }    from './reports.js';
 import { closeModal }     from './utils.js';
 
 // ── Auth guard ──────────────────────────────────────────────────────────────
-// Para desativar temporariamente (sem backend de auth), mude para: const DEV_BYPASS = true;
+// Verificar token diretamente — mais robusto do que depender de agro_user
 const DEV_BYPASS = false;
-const user = getCurrentUser();
-if (!DEV_BYPASS && !user) { window.location.href = '/index.html'; }
+const token = localStorage.getItem('agro_token');
+if (!DEV_BYPASS && !token) { window.location.href = '/index.html'; }
 
 // ── User display ────────────────────────────────────────────────────────────
-if (user) {
+const user = getCurrentUser();
+if (user && !user._tokenOnly) {
   const name = user.name || user.email || 'Usuário';
   document.getElementById('userName').textContent = name;
   document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();

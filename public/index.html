@@ -66,16 +66,20 @@
   <script type="module">
     import { login, register, getCurrentUser } from './service/api.js';
 
-    if (getCurrentUser()) window.location.href = '/app.html';
+    // Redireciona se já estiver logado (token ou user no storage)
+    if (localStorage.getItem('agro_token') || getCurrentUser()) {
+      window.location.href = '/app.html';
+    }
 
-    const loginView = document.getElementById('loginView');
+    const loginView    = document.getElementById('loginView');
     const registerView = document.getElementById('registerView');
-    const toast = document.getElementById('toast');
+    const toast        = document.getElementById('toast');
 
     function showToast(msg, type = 'error') {
       toast.textContent = msg;
       toast.className = `toast toast-${type}`;
-      setTimeout(() => toast.className = 'toast hidden', 4000);
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { toast.className = 'toast hidden'; }, 4000);
     }
 
     document.getElementById('goRegister').addEventListener('click', e => {
@@ -93,10 +97,14 @@
     document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
       const btn = document.getElementById('loginBtn');
-      const fd = new FormData(e.target);
+      const fd  = new FormData(e.target);
       btn.disabled = true; btn.textContent = 'Entrando...';
       try {
         await login(fd.get('email'), fd.get('password'));
+        // Verificar se token foi salvo antes de redirecionar
+        if (!localStorage.getItem('agro_token')) {
+          throw new Error('Token não recebido. Verifique as credenciais.');
+        }
         window.location.href = '/app.html';
       } catch (err) {
         showToast(err.message);
@@ -107,10 +115,16 @@
     document.getElementById('registerForm').addEventListener('submit', async e => {
       e.preventDefault();
       const btn = document.getElementById('registerBtn');
-      const fd = new FormData(e.target);
+      const fd  = new FormData(e.target);
       btn.disabled = true; btn.textContent = 'Criando...';
       try {
         await register(fd.get('name'), fd.get('email'), fd.get('password'));
+        // Se o backend retornou token junto com o cadastro, redirecionar direto
+        if (localStorage.getItem('agro_token')) {
+          window.location.href = '/app.html';
+          return;
+        }
+        // Caso contrário, pedir para fazer login
         showToast('Conta criada! Faça login.', 'success');
         registerView.classList.add('hidden');
         loginView.classList.remove('hidden');
