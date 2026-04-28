@@ -1,26 +1,111 @@
-import { getDashboard } from '../service/api.js';
+import { getDashboard, getProperties, getCultures, getActivities, getFinance } from '../service/api.js';
 import { formatCurrency, formatPercent, formatDate, showToast, emptyState } from './utils.js';
 
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
+let refreshTimer = null;
+
 export async function loadDashboard() {
+  setLoading(true);
   try {
-    const d = await getDashboard();
-
-    set('kpiProps',           d.totalProperties ?? '-');
-    set('kpiCultures',        d.totalCultures ?? '-');
-    set('kpiActiveCultures',  d.activeCultures ?? '-');
-    set('kpiPending',         d.pendingActivities ?? '-');
-    set('kpiDone',            d.doneActivities ?? '-');
-    set('kpiLate',            d.lateActivities ?? '-');
-    set('kpiCost',            formatCurrency(d.totalCost));
-    set('kpiRevenue',         formatCurrency(d.expectedRevenue));
-    set('kpiProfit',          formatCurrency(d.estimatedProfit));
-    set('kpiMargin',          `Margem: ${formatPercent(d.marginPercent)}`);
-
-    renderActivityChart(d);
-    renderHarvests(d.upcomingHarvests);
+    const d = await fetchDashboardData();
+    renderDashboard(d);
+    scheduleAutoRefresh();
   } catch (e) {
     showToast('Erro ao carregar dashboard: ' + e.message);
+  } finally {
+    setLoading(false);
   }
+}
+
+async function fetchDashboardData() {
+  // Tenta o endpoint dedicado primeiro
+  try {
+    const raw = await getDashboard();
+    const d = raw?.data ?? raw;
+    if (d && typeof d === 'object' && d.totalProperties !== undefined) return d;
+  } catch {}
+
+  // Fallback: agrega dados dos endpoints individuais
+  const [propsResult, culturesResult, activitiesResult, financeResult] = await Promise.allSettled([
+    getProperties(),
+    getCultures(),
+    getActivities(),
+    getFinance(),
+  ]);
+
+  const toArray = (res, key) => Array.isArray(res) ? res : (res?.[key] ?? res?.data ?? []);
+
+  const properties = propsResult.status === 'fulfilled'      ? toArray(propsResult.value,      'properties') : [];
+  const cultures   = culturesResult.status === 'fulfilled'   ? toArray(culturesResult.value,   'cultures')   : [];
+  const activities = activitiesResult.status === 'fulfilled' ? toArray(activitiesResult.value, 'activities') : [];
+  const fin        = financeResult.status === 'fulfilled'    ? (financeResult.value ?? {})                   : {};
+
+  const activeCultures   = cultures.filter(c => ['ativa', 'active', 'plantada'].includes(c.status));
+  const pendingActivities = activities.filter(a => ['pendente', 'pending'].includes(a.status));
+  const doneActivities    = activities.filter(a => ['concluida', 'concluída', 'done', 'completed'].includes(a.status));
+  const lateActivities    = activities.filter(a => {
+    if (['atrasada', 'late', 'overdue'].includes(a.status)) return true;
+    // Considera atrasada se pendente com prazo vencido
+    if (['pendente', 'pending'].includes(a.status) && a.dueDate) {
+      return new Date(a.dueDate) < new Date();
+    }
+    return false;
+  });
+
+  const now = new Date();
+  const upcomingHarvests = cultures
+    .filter(c => c.harvestDate && new Date(c.harvestDate) >= now)
+    .sort((a, b) => new Date(a.harvestDate) - new Date(b.harvestDate))
+    .slice(0, 5)
+    .map(c => ({ ...c, name: c.name || c.cultureName, propertyName: c.propertyName || '' }));
+
+  return {
+    totalProperties:   properties.length,
+    totalCultures:     cultures.length,
+    activeCultures:    activeCultures.length,
+    pendingActivities: pendingActivities.length,
+    doneActivities:    doneActivities.length,
+    lateActivities:    lateActivities.length,
+    totalCost:         fin.totalCost         ?? 0,
+    expectedRevenue:   fin.expectedRevenue   ?? 0,
+    estimatedProfit:   fin.estimatedProfit   ?? 0,
+    marginPercent:     fin.marginPercent     ?? 0,
+    upcomingHarvests,
+  };
+}
+
+function renderDashboard(d) {
+  set('kpiProps',          d.totalProperties   ?? '-');
+  set('kpiCultures',       d.totalCultures     ?? '-');
+  set('kpiActiveCultures', d.activeCultures    ?? '-');
+  set('kpiPending',        d.pendingActivities ?? '-');
+  set('kpiDone',           d.doneActivities    ?? '-');
+  set('kpiLate',           d.lateActivities    ?? '-');
+  set('kpiCost',           formatCurrency(d.totalCost));
+  set('kpiRevenue',        formatCurrency(d.expectedRevenue));
+  set('kpiProfit',         formatCurrency(d.estimatedProfit));
+  set('kpiMargin',         `Margem: ${formatPercent(d.marginPercent)}`);
+
+  renderActivityChart(d);
+  renderHarvests(d.upcomingHarvests);
+
+  const el = document.getElementById('dashLastUpdated');
+  if (el) {
+    el.textContent = `Atualizado às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+}
+
+function scheduleAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    const screen = document.getElementById('dashboard');
+    if (screen?.classList.contains('active')) loadDashboard();
+  }, REFRESH_INTERVAL);
+}
+
+function setLoading(on) {
+  const ids = ['kpiProps','kpiCultures','kpiActiveCultures','kpiPending','kpiDone','kpiLate','kpiCost','kpiRevenue','kpiProfit'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el && on) el.textContent = '...'; });
 }
 
 function set(id, val) {
@@ -36,8 +121,8 @@ function renderActivityChart(d) {
 
   const bars = [
     { label: 'Pendentes',  val: d.pendingActivities || 0, cls: 'bar-yellow' },
-    { label: 'Concluídas', val: d.doneActivities || 0,    cls: '' },
-    { label: 'Atrasadas',  val: d.lateActivities || 0,    cls: 'bar-red' },
+    { label: 'Concluídas', val: d.doneActivities    || 0, cls: '' },
+    { label: 'Atrasadas',  val: d.lateActivities    || 0, cls: 'bar-red' },
   ];
   el.innerHTML = bars.map(b => `
     <div class="finance-bar">

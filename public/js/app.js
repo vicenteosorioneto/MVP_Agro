@@ -100,12 +100,11 @@ document.querySelectorAll('.modal-overlay').forEach(mo => {
 document.getElementById('cancelDeleteModal')?.addEventListener('click', () => closeModal('deleteModal'));
 
 // ── Dashboard refresh button ─────────────────────────────────────────────────
-document.getElementById('dashRefreshBtn')?.addEventListener('click', () => {
-  Promise.all([loadProperties(), loadCultures()]).then(() => {
-    populatePropertyFilter(getPropertiesCache());
-    populateActivityFilters(getCulturesCache(), getPropertiesCache());
-    populateHistoryCultureFilter(getCulturesCache());
-  });
+document.getElementById('dashRefreshBtn')?.addEventListener('click', async () => {
+  await Promise.all([loadProperties(), loadCultures()]);
+  populatePropertyFilter(getPropertiesCache());
+  populateActivityFilters(getCulturesCache(), getPropertiesCache());
+  populateHistoryCultureFilter(getCulturesCache());
   loadDashboard();
 });
 
