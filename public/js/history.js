@@ -26,10 +26,14 @@ function renderTimeline(groups) {
   }
 
   el.innerHTML = '<div class="timeline">' + groups.map(group => {
-    const items = (group.activities || group.items || []).map(a => {
-      const status = a.status || 'pendente';
-      const cls = status === 'concluida' || status === 'done' ? 'tl-done'
-                : (new Date(a.date) < new Date() && status !== 'concluida') ? 'tl-late' : '';
+    // backend retorna 'activities'; fallback para 'items' ou 'timeline' (dados antigos)
+    const items = (group.activities || group.items || group.timeline || []).map(a => {
+      const status = a.status || 'pending';
+      // API retorna status EN: completed | delayed | pending
+      const isDone = status === 'completed' || status === 'concluida' || status === 'done';
+      const isLate = !isDone && (status === 'delayed' || status === 'atrasada'
+                     || (a.date && new Date(a.date) < new Date()));
+      const cls = isDone ? 'tl-done' : isLate ? 'tl-late' : '';
       return `<div class="timeline-item ${cls}">
         <div>
           <div class="timeline-title">${a.title}</div>

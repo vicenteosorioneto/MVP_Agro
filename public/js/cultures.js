@@ -1,8 +1,11 @@
 import { getCultures, createCulture, updateCulture, deleteCulture } from '../service/api.js';
-import { showToast, emptyState, confirmDelete, openModal, closeModal, formatDate, formatCurrency, statusBadge } from './utils.js';
+import { showToast, emptyState, confirmDelete, openModal, closeModal, formatDate, formatCurrency, statusBadge, setLoading, setFieldError, clearFieldErrors } from './utils.js';
 import { getPropertiesCache } from './properties.js';
 
 let cultures = [];
+
+// Mapeia status EN (vindo da API) → PT (valor do select no HTML)
+const STATUS_TO_SELECT = { active: 'ativa', harvested: 'colhida', cancelled: 'cancelada', planejada: 'planejada', ativa: 'ativa', colhida: 'colhida' };
 
 export function getCulturesCache() { return cultures; }
 
@@ -29,7 +32,7 @@ export async function loadCultures() {
 function renderTable() {
   const tbody = document.getElementById('culturesTableBody');
   if (!cultures.length) {
-    tbody.innerHTML = `<tr><td colspan="7">${emptyState('🌾', 'Nenhuma cultura', 'Clique em "+ Nova cultura" para adicionar.')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7">${emptyState('🌾', 'Nenhuma cultura', 'Registre sua primeira safra.', '+ Nova cultura', 'newCulture')}</td></tr>`;
     return;
   }
   const props = getPropertiesCache();
@@ -81,14 +84,19 @@ export function initCultures() {
   });
 
   document.getElementById('culturesTableBody')?.addEventListener('click', e => {
+    if (e.target.dataset.emptyAction === 'newCulture') { openCultureModal(null); return; }
     const editId = e.target.dataset.edit;
     const delId  = e.target.dataset.delete;
-    if (editId)  openCultureModal(editId);
+    if (editId) openCultureModal(editId);
     if (delId) {
-      confirmDelete('Excluir cultura', `Excluir "${e.target.dataset.name}"?`, async () => {
-        try { await deleteCulture(delId); showToast('Cultura excluída.', 'success'); loadCultures(); }
-        catch (err) { showToast('Erro: ' + err.message); }
-      });
+      confirmDelete(
+        'Excluir cultura',
+        `Tem certeza que deseja excluir "${e.target.dataset.name}"?`,
+        async () => {
+          try { await deleteCulture(delId); showToast('Cultura excluída.', 'success'); loadCultures(); }
+          catch (err) { showToast('Erro: ' + err.message); }
+        }
+      );
     }
   });
 }
@@ -111,7 +119,8 @@ function openCultureModal(id) {
   document.getElementById('cultureName').value     = c?.name || '';
   document.getElementById('culturePlanting').value = c?.plantingDate?.substring(0,10) || '';
   document.getElementById('cultureHarvest').value  = c?.harvestDate?.substring(0,10) || '';
-  document.getElementById('cultureStatus').value   = c?.status || 'planejada';
+  // API retorna 'active'/'harvested' etc — mapeia para o valor do select em PT
+  document.getElementById('cultureStatus').value   = STATUS_TO_SELECT[c?.status] || 'planejada';
   document.getElementById('cultureRevenue').value  = c?.expectedRevenue || 0;
   document.getElementById('cultureNotes').value    = c?.notes || '';
 
@@ -123,28 +132,46 @@ function openCultureModal(id) {
     propSel.appendChild(o);
   });
   propSel.value = c?.propertyId || c?.property?._id || c?.property?.id || '';
+
+  clearFieldErrors('cultureName', 'culturePlanting', 'cultureHarvest');
   openModal('cultureModal');
 }
 
 async function saveCulture() {
-  const id   = document.getElementById('cultureId').value;
+  const id  = document.getElementById('cultureId').value;
+  const btn = document.getElementById('saveCultureBtn');
+
+  const name         = document.getElementById('cultureName').value.trim();
+  const plantingDate = document.getElementById('culturePlanting').value;
+  const harvestDate  = document.getElementById('cultureHarvest').value;
+
+  clearFieldErrors('cultureName', 'culturePlanting', 'cultureHarvest');
+  let hasError = false;
+  if (!name)         { setFieldError('cultureName',     'Nome é obrigatório');           hasError = true; }
+  if (!plantingDate) { setFieldError('culturePlanting', 'Data de plantio é obrigatória'); hasError = true; }
+  if (!harvestDate)  { setFieldError('cultureHarvest',  'Data de colheita é obrigatória'); hasError = true; }
+  if (plantingDate && harvestDate && harvestDate <= plantingDate) {
+    setFieldError('cultureHarvest', 'Colheita deve ser posterior ao plantio');
+    hasError = true;
+  }
+  if (hasError) return;
+
   const data = {
-    name:            document.getElementById('cultureName').value.trim(),
+    name,
     propertyId:      document.getElementById('cultureProperty').value || undefined,
-    plantingDate:    document.getElementById('culturePlanting').value || undefined,
-    harvestDate:     document.getElementById('cultureHarvest').value || undefined,
+    plantingDate,
+    harvestDate,
     status:          document.getElementById('cultureStatus').value,
     expectedRevenue: parseFloat(document.getElementById('cultureRevenue').value) || 0,
     notes:           document.getElementById('cultureNotes').value.trim(),
   };
-  if (!data.name) { showToast('Nome obrigatório.'); return; }
-  const btn = document.getElementById('saveCultureBtn');
-  btn.disabled = true;
+
+  setLoading(btn, true);
   try {
     if (id) await updateCulture(id, data); else await createCulture(data);
     showToast(id ? 'Cultura atualizada.' : 'Cultura criada.', 'success');
     closeModal('cultureModal');
     loadCultures();
   } catch (e) { showToast('Erro: ' + e.message); }
-  finally { btn.disabled = false; }
+  finally { setLoading(btn, false); }
 }

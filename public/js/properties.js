@@ -1,5 +1,5 @@
 import { getProperties, createProperty, updateProperty, deleteProperty } from '../service/api.js';
-import { showToast, emptyState, confirmDelete, openModal, closeModal } from './utils.js';
+import { showToast, emptyState, confirmDelete, openModal, closeModal, setLoading, setFieldError, clearFieldErrors } from './utils.js';
 
 let properties = [];
 
@@ -21,7 +21,7 @@ export async function loadProperties() {
 function renderTable() {
   const tbody = document.getElementById('propertiesTableBody');
   if (!properties.length) {
-    tbody.innerHTML = `<tr><td colspan="5">${emptyState('🏡', 'Nenhuma propriedade', 'Clique em "+ Nova propriedade" para adicionar.')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5">${emptyState('🏡', 'Nenhuma propriedade', 'Cadastre sua primeira fazenda.', '+ Nova propriedade', 'newProperty')}</td></tr>`;
     return;
   }
   tbody.innerHTML = properties.map(p => `
@@ -44,14 +44,19 @@ export function initProperties() {
   document.getElementById('cancelPropertyModal')?.addEventListener('click', () => closeModal('propertyModal'));
 
   document.getElementById('propertiesTableBody')?.addEventListener('click', e => {
+    if (e.target.dataset.emptyAction === 'newProperty') { openPropertyModal(); return; }
     const editId = e.target.dataset.edit;
     const delId  = e.target.dataset.delete;
-    if (editId)  openPropertyModal(editId);
+    if (editId) openPropertyModal(editId);
     if (delId) {
-      confirmDelete('Excluir propriedade', `Excluir "${e.target.dataset.name}"? Esta ação não pode ser desfeita.`, async () => {
-        try { await deleteProperty(delId); showToast('Propriedade excluída.', 'success'); loadProperties(); }
-        catch (err) { showToast('Erro: ' + err.message); }
-      });
+      confirmDelete(
+        'Excluir propriedade',
+        `Tem certeza que deseja excluir "${e.target.dataset.name}"? Esta ação não pode ser desfeita.`,
+        async () => {
+          try { await deleteProperty(delId); showToast('Propriedade excluída.', 'success'); loadProperties(); }
+          catch (err) { showToast('Erro: ' + err.message); }
+        }
+      );
     }
   });
 }
@@ -66,27 +71,33 @@ function openPropertyModal(id) {
   document.getElementById('propState').value     = p?.state || '';
   document.getElementById('propType').value      = p?.productionType || p?.type || '';
   document.getElementById('propNotes').value     = p?.notes || '';
+  clearFieldErrors('propName');
   openModal('propertyModal');
 }
 
 async function saveProperty() {
-  const id   = document.getElementById('propertyId').value;
+  const id  = document.getElementById('propertyId').value;
+  const btn = document.getElementById('savePropertyBtn');
+  const name = document.getElementById('propName').value.trim();
+
+  clearFieldErrors('propName');
+  if (!name) { setFieldError('propName', 'Nome é obrigatório'); return; }
+
   const data = {
-    name:           document.getElementById('propName').value.trim(),
+    name,
     hectares:       parseFloat(document.getElementById('propHectares').value) || 0,
     city:           document.getElementById('propCity').value.trim(),
     state:          document.getElementById('propState').value,
     productionType: document.getElementById('propType').value.trim(),
     notes:          document.getElementById('propNotes').value.trim(),
   };
-  if (!data.name) { showToast('Nome obrigatório.'); return; }
-  const btn = document.getElementById('savePropertyBtn');
-  btn.disabled = true;
+
+  setLoading(btn, true);
   try {
     if (id) await updateProperty(id, data); else await createProperty(data);
     showToast(id ? 'Propriedade atualizada.' : 'Propriedade criada.', 'success');
     closeModal('propertyModal');
     loadProperties();
   } catch (e) { showToast('Erro: ' + e.message); }
-  finally { btn.disabled = false; }
+  finally { setLoading(btn, false); }
 }

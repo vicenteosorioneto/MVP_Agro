@@ -414,3 +414,15 @@ h1,h2,h3,h4 { line-height: 1.3; font-weight: 600; }
 @media (max-width: 480px) {
   .kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== VALIDAÇÃO INLINE ===== */
+.field-error {
+  border-color: var(--red-500) !important;
+  background: var(--red-100) !important;
+}
+.field-error-msg {
+  display: block;
+  color: var(--red-500);
+  font-size: .75rem;
+  margin-top: 3px;
+}
