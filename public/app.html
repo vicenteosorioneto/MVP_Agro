@@ -58,7 +58,7 @@
         <div class="sidebar-avatar" id="userAvatar">U</div>
         <div class="sidebar-user-info">
           <div class="sidebar-user-name" id="userName">Usuário</div>
-          <div class="sidebar-user-role">Produtor rural</div>
+          <div class="sidebar-user-role" id="userRole">Produtor rural</div>
         </div>
       </div>
       <button class="btn btn-logout btn-full" id="logoutBtn">Sair</button>
@@ -168,11 +168,11 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Cultura</th><th>Propriedade</th><th>Status</th><th>Plantio</th><th>Colheita</th><th>Receita prevista</th><th>Ações</th>
+                <th>Cultura</th><th>Propriedade</th><th>Status</th><th>Plantio</th><th>Colheita</th><th>Área (ha)</th><th>Receita prevista</th><th>Ações</th>
               </tr>
             </thead>
             <tbody id="culturesTableBody">
-              <tr><td colspan="7" class="loading-row"><span class="loading-spinner"></span></td></tr>
+              <tr><td colspan="8" class="loading-row"><span class="loading-spinner"></span></td></tr>
             </tbody>
           </table>
         </div>
@@ -199,6 +199,10 @@
           </select>
         </div>
         <div class="field">
+          <label>Tipo</label>
+          <select id="filterActTipo"><option value="">Todos os tipos</option></select>
+        </div>
+        <div class="field">
           <label>Cultura</label>
           <select id="filterActCulture"><option value="">Todas</option></select>
         </div>
@@ -223,11 +227,11 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Atividade</th><th>Cultura</th><th>Data</th><th>Responsável</th><th>Custo</th><th>Status</th><th>Ações</th>
+                <th>Atividade</th><th>Tipo</th><th>Cultura</th><th>Data</th><th>Responsável</th><th>Custo</th><th>Status</th><th>Ações</th>
               </tr>
             </thead>
             <tbody id="activitiesTableBody">
-              <tr><td colspan="7" class="loading-row"><span class="loading-spinner"></span></td></tr>
+              <tr><td colspan="8" class="loading-row"><span class="loading-spinner"></span></td></tr>
             </tbody>
           </table>
         </div>
@@ -241,6 +245,23 @@
         <div class="page-header-actions">
           <button class="btn btn-secondary btn-sm" id="financeRefreshBtn">↻ Atualizar</button>
         </div>
+      </div>
+
+      <div class="filters-bar" id="financeFilters">
+        <div class="field">
+          <label>Propriedade</label>
+          <select id="filterFinProp"><option value="">Todas</option></select>
+        </div>
+        <div class="field">
+          <label>Data inicial</label>
+          <input type="date" id="filterFinStart" />
+        </div>
+        <div class="field">
+          <label>Data final</label>
+          <input type="date" id="filterFinEnd" />
+        </div>
+        <button class="btn btn-primary btn-sm" id="applyFinFilters">Filtrar</button>
+        <button class="btn btn-secondary btn-sm" id="clearFinFilters">Limpar</button>
       </div>
 
       <div class="kpi-grid" id="financeKpis">
@@ -288,7 +309,8 @@
     <section id="alerts" class="screen">
       <div class="page-header">
         <div><h2>Alertas</h2><p>Notificações e avisos importantes</p></div>
-        <div class="page-header-actions">
+        <div class="page-header-actions" style="gap:8px;">
+          <button class="btn btn-secondary btn-sm" id="markAllReadBtn">✓ Marcar todos como lido</button>
           <button class="btn btn-secondary btn-sm" id="generateAlertsBtn">⚡ Gerar alertas</button>
         </div>
       </div>
@@ -320,10 +342,14 @@
 
       <div class="card section-gap" style="margin-top:20px;">
         <div class="card-header"><span class="card-title">Upload de arquivo</span></div>
-        <p style="color:var(--gray-500);font-size:.9rem;margin-bottom:16px;">Anexe fotos, documentos ou comprovantes às suas culturas.</p>
+        <p style="color:var(--gray-500);font-size:.9rem;margin-bottom:16px;">Anexe fotos, documentos ou comprovantes vinculados a uma cultura.</p>
         <form id="uploadForm">
-          <div class="form-row" style="align-items:flex-end;">
-            <div class="field" style="margin:0;">
+          <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;gap:12px;">
+            <div class="field" style="margin:0;min-width:180px;">
+              <label>Cultura (opcional)</label>
+              <select id="uploadCulture"><option value="">Nenhuma</option></select>
+            </div>
+            <div class="field" style="margin:0;flex:1;min-width:200px;">
               <label>Arquivo</label>
               <input type="file" name="file" required />
             </div>
@@ -331,6 +357,14 @@
           </div>
         </form>
         <div id="uploadResult" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card section-gap" style="margin-top:20px;">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="card-title">Arquivos enviados</span>
+          <button class="btn btn-secondary btn-sm" id="refreshFilesBtn">↻ Atualizar</button>
+        </div>
+        <div id="filesList"><div class="loading-row"><span class="loading-spinner"></span></div></div>
       </div>
     </section>
   </div>
@@ -393,8 +427,9 @@
           <option value="colhida">Colhida</option>
         </select>
       </div>
-      <div class="field"><label>Receita prevista (R$)</label><input type="number" id="cultureRevenue" min="0" step="0.01" value="0" /></div>
+      <div class="field"><label>Área plantada (ha)</label><input type="number" id="cultureArea" min="0" step="0.01" placeholder="0.00" /></div>
     </div>
+    <div class="field"><label>Receita prevista (R$)</label><input type="number" id="cultureRevenue" min="0" step="0.01" value="0" /></div>
     <div class="field"><label>Observações</label><textarea id="cultureNotes" rows="2"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" id="cancelCultureModal">Cancelar</button>
@@ -419,15 +454,27 @@
       <div class="field"><label>Responsável</label><input type="text" id="actAssignee" placeholder="Nome do responsável" /></div>
     </div>
     <div class="form-row">
+      <div class="field"><label>Tipo de atividade</label>
+        <select id="actTipo">
+          <option value="Outro">Outro</option>
+          <option value="Plantio">Plantio</option>
+          <option value="Irrigação">Irrigação</option>
+          <option value="Adubação">Adubação</option>
+          <option value="Pulverização">Pulverização</option>
+          <option value="Colheita">Colheita</option>
+          <option value="Manutenção">Manutenção</option>
+        </select>
+      </div>
       <div class="field"><label>Status</label>
         <select id="actStatus">
           <option value="pendente">Pendente</option>
           <option value="concluida">Concluída</option>
         </select>
       </div>
-      <div class="field"><label>Custo (R$)</label><input type="number" id="actCost" min="0" step="0.01" value="0" /></div>
     </div>
-    <div class="field"><label>Foto / Documento</label><input type="file" id="actFile" accept="image/*,.pdf,.doc,.docx" /></div>
+    <div class="field"><label>Custo (R$)</label><input type="number" id="actCost" min="0" step="0.01" value="0" /></div>
+    <div id="actCurrentPhoto" style="display:none;margin-bottom:8px;padding:8px;background:var(--gray-50,#f9fafb);border-radius:6px;border:1px solid var(--gray-200,#e5e7eb);font-size:.85rem;"></div>
+    <div class="field"><label>Foto / Documento <span style="color:var(--gray-400);font-weight:400;font-size:.8rem;">(substituir foto existente)</span></label><input type="file" id="actFile" accept="image/*,.pdf,.doc,.docx" /></div>
     <div class="field"><label>Observações</label><textarea id="actNotes" rows="2"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" id="cancelActivityModal">Cancelar</button>

@@ -1,7 +1,7 @@
 import { getCurrentUser, logout } from '../service/api.js';
 import { loadDashboard }  from './dashboard.js';
 import { loadProperties, initProperties, getPropertiesCache } from './properties.js';
-import { loadCultures, initCultures, getCulturesCache, populatePropertyFilter } from './cultures.js';
+import { loadCultures, initCultures, getCulturesCache, populatePropertyFilter, setHighlight } from './cultures.js';
 import { loadActivities, initActivities, populateActivityFilters } from './activities.js';
 import { loadFinance }    from './finance.js';
 import { loadAlerts, initAlerts } from './alerts.js';
@@ -10,7 +10,6 @@ import { initReports }    from './reports.js';
 import { closeModal }     from './utils.js';
 
 // ── Auth guard ──────────────────────────────────────────────────────────────
-// Verificar token diretamente — mais robusto do que depender de agro_user
 const DEV_BYPASS = false;
 const token = localStorage.getItem('agro_token');
 if (!DEV_BYPASS && !token) { window.location.href = '/index.html'; }
@@ -21,6 +20,12 @@ if (user && !user._tokenOnly) {
   const name = user.name || user.email || 'Usuário';
   document.getElementById('userName').textContent = name;
   document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+
+  const roleEl = document.getElementById('userRole');
+  if (roleEl && user.role) {
+    const roleMap = { admin: 'Administrador', tecnico: 'Técnico', user: 'Produtor rural', produtor: 'Produtor rural' };
+    roleEl.textContent = roleMap[user.role] || user.role;
+  }
 }
 
 document.getElementById('logoutBtn')?.addEventListener('click', logout);
@@ -39,7 +44,34 @@ const SCREEN_TITLES = {
 
 let currentScreen = 'dashboard';
 
-function showScreen(id) {
+function applyPreFilters(screenId, filters) {
+  if (!filters || !Object.keys(filters).length) return;
+
+  if (screenId === 'activities') {
+    ['filterActStatus', 'filterActCulture', 'filterActProp', 'filterActStart', 'filterActEnd']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    if (filters.status !== undefined) {
+      const el = document.getElementById('filterActStatus');
+      if (el) el.value = filters.status;
+    }
+    if (filters.cultureId !== undefined) {
+      const el = document.getElementById('filterActCulture');
+      if (el) el.value = filters.cultureId;
+    }
+  }
+
+  if (screenId === 'cultures') {
+    if (filters.status !== undefined) {
+      const el = document.getElementById('filterCultureStatus');
+      if (el) el.value = filters.status;
+    }
+    if (filters.highlightId) {
+      setHighlight(filters.highlightId);
+    }
+  }
+}
+
+function showScreen(id, preFilters = {}) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
@@ -54,6 +86,8 @@ function showScreen(id) {
 
   closeSidebar();
   currentScreen = id;
+
+  applyPreFilters(id, preFilters);
   loadScreen(id);
 }
 
@@ -75,6 +109,12 @@ async function loadScreen(id) {
 
 document.querySelectorAll('.nav-item[data-screen]').forEach(item => {
   item.addEventListener('click', () => showScreen(item.dataset.screen));
+});
+
+// ── Cross-module navigation via custom event ─────────────────────────────────
+document.addEventListener('agro:navigate', (e) => {
+  const { screen, filters = {} } = e.detail || {};
+  if (screen) showScreen(screen, filters);
 });
 
 // ── Sidebar mobile ──────────────────────────────────────────────────────────
@@ -109,31 +149,34 @@ document.getElementById('dashRefreshBtn')?.addEventListener('click', async () =>
 });
 
 document.getElementById('financeRefreshBtn')?.addEventListener('click', loadFinance);
+document.getElementById('applyFinFilters')?.addEventListener('click', loadFinance);
+document.getElementById('clearFinFilters')?.addEventListener('click', () => {
+  ['filterFinProp', 'filterFinStart', 'filterFinEnd'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  loadFinance();
+});
 
 // ── Init all modules ─────────────────────────────────────────────────────────
 async function init() {
-  // Load base data first so selects are populated
   await Promise.all([loadProperties(), loadCultures()]);
 
   const props    = getPropertiesCache();
   const cultures = getCulturesCache();
 
-  // Wire up modules
   initProperties();
   initCultures();
   initActivities(cultures, props);
   initAlerts();
   initHistory();
-  initReports();
+  initReports(cultures, props);
 
-  // Populate cross-module filters
   populatePropertyFilter(props);
   populateActivityFilters(cultures, props);
   populateHistoryCultureFilter(cultures);
 
-  // Load active screen
   loadDashboard();
-  loadAlerts(); // to show badge on sidebar
+  loadAlerts(); // badge on sidebar
 }
 
 init();

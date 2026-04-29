@@ -4,51 +4,59 @@ import { getCulturesCache } from './cultures.js';
 
 let activities = [];
 
-// Mapeia status EN (vindo da API) → valor do select PT no HTML
+const ACTIVITY_TYPES = ['Outro', 'Plantio', 'Irrigação', 'Adubação', 'Pulverização', 'Colheita', 'Manutenção'];
+
+// API retorna status EN → valor do select PT
 const STATUS_TO_SELECT = { completed: 'concluida', pending: 'pendente', delayed: 'pendente' };
+
+function navigate(screen, filters = {}) {
+  document.dispatchEvent(new CustomEvent('agro:navigate', { detail: { screen, filters } }));
+}
 
 export async function loadActivities() {
   const tbody = document.getElementById('activitiesTableBody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="7" class="loading-row"><span class="loading-spinner"></span></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="loading-row"><span class="loading-spinner"></span></td></tr>';
 
   const params = {};
-  const status = document.getElementById('filterActStatus')?.value;
+  const status  = document.getElementById('filterActStatus')?.value;
   const culture = document.getElementById('filterActCulture')?.value;
-  const prop   = document.getElementById('filterActProp')?.value;
-  const start  = document.getElementById('filterActStart')?.value;
-  const end    = document.getElementById('filterActEnd')?.value;
+  const prop    = document.getElementById('filterActProp')?.value;
+  const start   = document.getElementById('filterActStart')?.value;
+  const end     = document.getElementById('filterActEnd')?.value;
+  const tipo    = document.getElementById('filterActTipo')?.value;
   if (status)  params.status     = status;
   if (culture) params.cultureId  = culture;
   if (prop)    params.propertyId = prop;
   if (start)   params.startDate  = start;
   if (end)     params.endDate    = end;
+  if (tipo)    params.tipo       = tipo;
 
   try {
     const res = await getActivities(params);
     activities = Array.isArray(res) ? res : (res.data ?? res.activities ?? []);
     renderTable();
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="7">${emptyState('❌', 'Erro ao carregar', e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8">${emptyState('❌', 'Erro ao carregar', e.message)}</td></tr>`;
   }
 }
 
 function renderTable() {
   const tbody = document.getElementById('activitiesTableBody');
   if (!activities.length) {
-    tbody.innerHTML = `<tr><td colspan="7">${emptyState('📋', 'Nenhuma atividade', 'Registre a primeira atividade da safra.', '+ Nova atividade', 'newActivity')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8">${emptyState('📋', 'Nenhuma atividade', 'Registre a primeira atividade da safra.', '+ Nova atividade', 'newActivity')}</td></tr>`;
     return;
   }
   tbody.innerHTML = activities.map(a => {
-    // API já retorna status computado: 'pending' | 'completed' | 'delayed'
     const isCompleted = a.status === 'completed';
     const isDelayed   = a.status === 'delayed';
     const rowStyle    = isDelayed ? 'background:var(--red-100);' : '';
     const photoLink   = a.photoUrl ? `<a href="${a.photoUrl}" target="_blank" style="font-size:.8rem;">📎 Foto</a>` : '';
-    // Para o badge exibe o status EN — statusBadge já mapeia para PT
     const badge = statusBadge(a.status);
+    const tipo = a.tipo || 'Outro';
     return `<tr style="${rowStyle}">
       <td><strong>${a.title}</strong>${photoLink ? '<br>' + photoLink : ''}</td>
+      <td><span style="font-size:.82rem;padding:2px 7px;background:var(--gray-100);border-radius:10px;">${tipo}</span></td>
       <td>${a.cultureName || a.culture?.name || '-'}</td>
       <td>${formatDate(a.date)}</td>
       <td>${a.assignee || '-'}</td>
@@ -70,12 +78,18 @@ export function initActivities(cultures, properties) {
 
   document.getElementById('applyActFilters')?.addEventListener('click', loadActivities);
   document.getElementById('clearActFilters')?.addEventListener('click', () => {
-    ['filterActStatus','filterActCulture','filterActProp','filterActStart','filterActEnd']
+    ['filterActStatus','filterActCulture','filterActProp','filterActStart','filterActEnd','filterActTipo']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     loadActivities();
   });
 
+  // Auto-apply on select change
+  ['filterActStatus', 'filterActCulture', 'filterActProp', 'filterActTipo'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', loadActivities);
+  });
+
   populateActivityFilters(cultures, properties);
+  populateTipoFilters();
 
   document.getElementById('activitiesTableBody')?.addEventListener('click', async e => {
     if (e.target.dataset.emptyAction === 'newActivity') { openActivityModal(null); return; }
@@ -107,6 +121,18 @@ export function initActivities(cultures, properties) {
         }
       );
     }
+  });
+}
+
+function populateTipoFilters() {
+  // Populate tipo filter in the filter bar (if element exists)
+  const tipoSel = document.getElementById('filterActTipo');
+  if (!tipoSel) return;
+  tipoSel.innerHTML = '<option value="">Todos os tipos</option>';
+  ACTIVITY_TYPES.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t;
+    tipoSel.appendChild(o);
   });
 }
 
@@ -142,10 +168,31 @@ function openActivityModal(id) {
   document.getElementById('actTitle').value     = a?.title || '';
   document.getElementById('actDate').value      = a?.date?.substring(0,10) || '';
   document.getElementById('actAssignee').value  = a?.assignee || '';
-  // API retorna 'completed'/'pending'/'delayed' — mapeia para valor do select PT
   document.getElementById('actStatus').value    = STATUS_TO_SELECT[a?.status] || 'pendente';
   document.getElementById('actCost').value      = a?.cost || 0;
   document.getElementById('actNotes').value     = a?.notes || '';
+  document.getElementById('actTipo').value      = a?.tipo || 'Outro';
+
+  // Photo preview
+  const photoPreview = document.getElementById('actCurrentPhoto');
+  if (photoPreview) {
+    if (a?.photoUrl) {
+      const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(a.photoUrl);
+      photoPreview.style.display = '';
+      photoPreview.innerHTML = isImage
+        ? `<div style="display:flex;align-items:center;gap:10px;">
+            <img src="${a.photoUrl}" alt="Foto atual" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--gray-200);" />
+            <div>
+              <div style="font-weight:500;color:var(--gray-700);">Foto atual</div>
+              <a href="${a.photoUrl}" target="_blank" style="font-size:.8rem;color:var(--green-600);">Ver em tamanho completo →</a>
+            </div>
+          </div>`
+        : `<div style="display:flex;align-items:center;gap:8px;"><span>📎</span><a href="${a.photoUrl}" target="_blank" style="color:var(--green-600);">Ver arquivo anexado →</a></div>`;
+    } else {
+      photoPreview.style.display = 'none';
+      photoPreview.innerHTML = '';
+    }
+  }
 
   const sel = document.getElementById('actCulture');
   sel.innerHTML = '<option value="">Sem cultura</option>';
@@ -177,6 +224,7 @@ async function saveActivity() {
   fd.append('status',    document.getElementById('actStatus').value);
   fd.append('cost',      document.getElementById('actCost').value);
   fd.append('notes',     document.getElementById('actNotes').value.trim());
+  fd.append('tipo',      document.getElementById('actTipo').value);
   const cultureId = document.getElementById('actCulture').value;
   if (cultureId) fd.append('cultureId', cultureId);
   if (fileInput?.files[0]) fd.append('photo', fileInput.files[0]);

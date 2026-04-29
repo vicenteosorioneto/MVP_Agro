@@ -10,15 +10,18 @@ const TYPE_MAP = {
   activity_no_assignee: { icon: '👤', cls: 'alert-yellow', label: 'Sem responsável' },
 };
 
+let alertsCache = [];
+
 export async function loadAlerts() {
   const el = document.getElementById('alertsList');
   if (!el) return;
   el.innerHTML = '<div class="loading-row"><span class="loading-spinner"></span></div>';
   try {
     const res = await getAlerts();
-    const alerts = Array.isArray(res) ? res : (res.data ?? res.alerts ?? []);
-    renderAlerts(alerts);
-    updateBadge(alerts.filter(a => !a.read).length);
+    alertsCache = Array.isArray(res) ? res : (res.data ?? res.alerts ?? []);
+    renderAlerts(alertsCache);
+    updateBadge(alertsCache.filter(a => !a.read).length);
+    updateMarkAllBtn(alertsCache);
   } catch (e) {
     el.innerHTML = emptyState('❌', 'Erro ao carregar alertas', e.message);
   }
@@ -55,16 +58,37 @@ function updateBadge(count) {
   badge.style.display = count > 0 ? '' : 'none';
 }
 
+function updateMarkAllBtn(alerts) {
+  const btn = document.getElementById('markAllReadBtn');
+  if (!btn) return;
+  const unreadCount = alerts.filter(a => !a.read).length;
+  btn.style.display = unreadCount > 0 ? '' : 'none';
+}
+
 export function initAlerts() {
   document.getElementById('generateAlertsBtn')?.addEventListener('click', async () => {
     const btn = document.getElementById('generateAlertsBtn');
     btn.disabled = true; btn.textContent = 'Gerando...';
     try {
-      await generateAlerts();
-      showToast('Alertas gerados!', 'success');
+      const res = await generateAlerts();
+      const count = res?.data?.length ?? res?.count ?? null;
+      showToast(count != null ? `${count} alerta(s) gerado(s)!` : 'Alertas gerados!', 'success');
       loadAlerts();
     } catch (e) { showToast('Erro: ' + e.message); }
     finally { btn.disabled = false; btn.textContent = '⚡ Gerar alertas'; }
+  });
+
+  document.getElementById('markAllReadBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('markAllReadBtn');
+    const unread = alertsCache.filter(a => !a.read);
+    if (!unread.length) { showToast('Nenhum alerta não lido.', 'success'); return; }
+    btn.disabled = true; btn.textContent = 'Marcando...';
+    try {
+      await Promise.all(unread.map(a => markAlertAsRead(a.id || a._id)));
+      showToast(`${unread.length} alerta(s) marcado(s) como lido.`, 'success');
+      loadAlerts();
+    } catch (e) { showToast('Erro: ' + e.message); }
+    finally { btn.disabled = false; btn.textContent = '✓ Marcar todos como lido'; }
   });
 
   document.getElementById('alertsList')?.addEventListener('click', async e => {

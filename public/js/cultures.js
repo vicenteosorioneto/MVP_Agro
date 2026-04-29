@@ -3,16 +3,21 @@ import { showToast, emptyState, confirmDelete, openModal, closeModal, formatDate
 import { getPropertiesCache } from './properties.js';
 
 let cultures = [];
+let pendingHighlight = null;
 
-// Mapeia status EN (vindo da API) → PT (valor do select no HTML)
+// API status EN → PT select value
 const STATUS_TO_SELECT = { active: 'ativa', harvested: 'colhida', cancelled: 'cancelada', planejada: 'planejada', ativa: 'ativa', colhida: 'colhida' };
 
 export function getCulturesCache() { return cultures; }
 
+export function setHighlight(cultureId) {
+  pendingHighlight = cultureId;
+}
+
 export async function loadCultures() {
   const tbody = document.getElementById('culturesTableBody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="7" class="loading-row"><span class="loading-spinner"></span></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="loading-row"><span class="loading-spinner"></span></td></tr>';
 
   const params = {};
   const prop   = document.getElementById('filterCultureProp')?.value;
@@ -25,26 +30,28 @@ export async function loadCultures() {
     cultures = Array.isArray(res) ? res : (res.data ?? res.cultures ?? []);
     renderTable();
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="7">${emptyState('❌', 'Erro ao carregar', e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8">${emptyState('❌', 'Erro ao carregar', e.message)}</td></tr>`;
   }
 }
 
 function renderTable() {
   const tbody = document.getElementById('culturesTableBody');
   if (!cultures.length) {
-    tbody.innerHTML = `<tr><td colspan="7">${emptyState('🌾', 'Nenhuma cultura', 'Registre sua primeira safra.', '+ Nova cultura', 'newCulture')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8">${emptyState('🌾', 'Nenhuma cultura', 'Registre sua primeira safra.', '+ Nova cultura', 'newCulture')}</td></tr>`;
     return;
   }
   const props = getPropertiesCache();
   tbody.innerHTML = cultures.map(c => {
     const prop = props.find(p => (p.id || p._id) === c.propertyId);
+    const areaDisplay = c.area != null && c.area !== '' ? `${Number(c.area).toFixed(2)} ha` : '-';
     return `
-    <tr>
+    <tr data-culture-id="${c.id || c._id}">
       <td><strong>${c.name}</strong></td>
       <td>${prop?.name || c.propertyName || c.property?.name || '-'}</td>
       <td>${statusBadge(c.status)}</td>
       <td>${formatDate(c.plantingDate)}</td>
       <td>${formatDate(c.harvestDate)}</td>
+      <td>${areaDisplay}</td>
       <td>${formatCurrency(c.expectedRevenue)}</td>
       <td class="actions">
         <button class="btn btn-secondary btn-sm" data-edit="${c.id || c._id}">Editar</button>
@@ -52,21 +59,18 @@ function renderTable() {
       </td>
     </tr>`;
   }).join('');
-}
 
-export function populateCultureSelects(selects) {
-  selects.forEach(sel => {
-    if (!sel) return;
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">Sem cultura</option>';
-    cultures.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id || c._id;
-      opt.textContent = c.name;
-      sel.appendChild(opt);
-    });
-    sel.value = cur;
-  });
+  // Apply highlight if pending (e.g. navigated from dashboard harvest)
+  if (pendingHighlight) {
+    const row = tbody.querySelector(`tr[data-culture-id="${pendingHighlight}"]`);
+    if (row) {
+      row.style.transition = 'background 0.4s';
+      row.style.background = 'var(--yellow-100, #fef9c3)';
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { row.style.background = ''; }, 2500);
+    }
+    pendingHighlight = null;
+  }
 }
 
 export function initCultures() {
@@ -119,10 +123,12 @@ function openCultureModal(id) {
   document.getElementById('cultureName').value     = c?.name || '';
   document.getElementById('culturePlanting').value = c?.plantingDate?.substring(0,10) || '';
   document.getElementById('cultureHarvest').value  = c?.harvestDate?.substring(0,10) || '';
-  // API retorna 'active'/'harvested' etc — mapeia para o valor do select em PT
   document.getElementById('cultureStatus').value   = STATUS_TO_SELECT[c?.status] || 'planejada';
   document.getElementById('cultureRevenue').value  = c?.expectedRevenue || 0;
   document.getElementById('cultureNotes').value    = c?.notes || '';
+
+  const areaEl = document.getElementById('cultureArea');
+  if (areaEl) areaEl.value = c?.area != null ? c.area : '';
 
   const propSel = document.getElementById('cultureProperty');
   propSel.innerHTML = '<option value="">Selecione</option>';
@@ -147,7 +153,7 @@ async function saveCulture() {
 
   clearFieldErrors('cultureName', 'culturePlanting', 'cultureHarvest');
   let hasError = false;
-  if (!name)         { setFieldError('cultureName',     'Nome é obrigatório');           hasError = true; }
+  if (!name)         { setFieldError('cultureName',     'Nome é obrigatório');            hasError = true; }
   if (!plantingDate) { setFieldError('culturePlanting', 'Data de plantio é obrigatória'); hasError = true; }
   if (!harvestDate)  { setFieldError('cultureHarvest',  'Data de colheita é obrigatória'); hasError = true; }
   if (plantingDate && harvestDate && harvestDate <= plantingDate) {
@@ -156,12 +162,15 @@ async function saveCulture() {
   }
   if (hasError) return;
 
+  const areaVal = document.getElementById('cultureArea')?.value;
+
   const data = {
     name,
     propertyId:      document.getElementById('cultureProperty').value || undefined,
     plantingDate,
     harvestDate,
     status:          document.getElementById('cultureStatus').value,
+    area:            areaVal !== '' && areaVal != null ? parseFloat(areaVal) : null,
     expectedRevenue: parseFloat(document.getElementById('cultureRevenue').value) || 0,
     notes:           document.getElementById('cultureNotes').value.trim(),
   };

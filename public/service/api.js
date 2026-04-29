@@ -137,6 +137,10 @@ export function getHistory(params = {}) {
 }
 
 // Files
+export function getFiles(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request('GET', `/files${qs ? '?' + qs : ''}`);
+}
 export function uploadFile(formData) { return request('POST', '/files/upload', formData, true); }
 export function deleteFile(id) { return request('DELETE', `/files/${id}`); }
 
