@@ -6,7 +6,7 @@ let activities = [];
 
 const ACTIVITY_TYPES = ['Outro', 'Plantio', 'Irrigação', 'Adubação', 'Pulverização', 'Colheita', 'Manutenção'];
 
-// API retorna status EN → valor do select PT
+// Backend retorna status EN → valor do select PT
 const STATUS_TO_SELECT = { completed: 'concluida', pending: 'pendente', delayed: 'pendente' };
 
 function navigate(screen, filters = {}) {
@@ -48,8 +48,8 @@ function renderTable() {
     return;
   }
   tbody.innerHTML = activities.map(a => {
-    const isCompleted = a.status === 'completed';
-    const isDelayed   = a.status === 'delayed';
+    const isCompleted = a.status === 'completed' || a.status === 'concluida';
+    const isDelayed   = a.status === 'delayed'   || a.status === 'atrasada';
     const rowStyle    = isDelayed ? 'background:var(--red-100);' : '';
     const photoLink   = a.photoUrl ? `<a href="${a.photoUrl}" target="_blank" style="font-size:.8rem;">📎 Foto</a>` : '';
     const badge = statusBadge(a.status);
@@ -83,7 +83,6 @@ export function initActivities(cultures, properties) {
     loadActivities();
   });
 
-  // Auto-apply on select change
   ['filterActStatus', 'filterActCulture', 'filterActProp', 'filterActTipo'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', loadActivities);
   });
@@ -125,7 +124,6 @@ export function initActivities(cultures, properties) {
 }
 
 function populateTipoFilters() {
-  // Populate tipo filter in the filter bar (if element exists)
   const tipoSel = document.getElementById('filterActTipo');
   if (!tipoSel) return;
   tipoSel.innerHTML = '<option value="">Todos os tipos</option>';
@@ -163,20 +161,32 @@ export function populateActivityFilters(cultures, properties) {
 
 function openActivityModal(id) {
   const a = id ? activities.find(x => (x.id || x._id) === id) : null;
-  document.getElementById('activityModalTitle').textContent = a ? 'Editar Atividade' : 'Nova Atividade';
+  const isEdit = !!id;
+
+  document.getElementById('activityModalTitle').textContent = isEdit ? 'Editar Atividade' : 'Nova Atividade';
   document.getElementById('activityId').value   = a?.id || a?._id || '';
   document.getElementById('actTitle').value     = a?.title || '';
   document.getElementById('actDate').value      = a?.date?.substring(0,10) || '';
   document.getElementById('actAssignee').value  = a?.assignee || '';
-  document.getElementById('actStatus').value    = STATUS_TO_SELECT[a?.status] || 'pendente';
+  document.getElementById('actStatus').value    = STATUS_TO_SELECT[a?.status] || a?.status || 'pendente';
   document.getElementById('actCost').value      = a?.cost || 0;
   document.getElementById('actNotes').value     = a?.notes || '';
   document.getElementById('actTipo').value      = a?.tipo || 'Outro';
 
-  // Photo preview
+  // Campo de arquivo: exibir apenas na criação; edição não suporta upload
+  const fileField = document.getElementById('actFile')?.closest('.field');
+  if (fileField) {
+    fileField.style.display = isEdit ? 'none' : '';
+    if (!isEdit) {
+      const fileInput = document.getElementById('actFile');
+      if (fileInput) fileInput.value = '';
+    }
+  }
+
+  // Preview do arquivo atual (somente na edição)
   const photoPreview = document.getElementById('actCurrentPhoto');
   if (photoPreview) {
-    if (a?.photoUrl) {
+    if (isEdit && a?.photoUrl) {
       const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(a.photoUrl);
       photoPreview.style.display = '';
       photoPreview.innerHTML = isImage
@@ -216,7 +226,14 @@ async function saveActivity() {
   if (!date)  { setFieldError('actDate',  'Data é obrigatória');   hasError = true; }
   if (hasError) return;
 
-  const fileInput = document.getElementById('actFile');
+  // Derivar propertyId a partir da cultura selecionada
+  const cultureId = document.getElementById('actCulture').value;
+  let propertyId = '';
+  if (cultureId) {
+    const cult = getCulturesCache().find(c => (c.id || c._id) === cultureId);
+    propertyId = cult?.propertyId || cult?.property?._id || cult?.property?.id || '';
+  }
+
   const fd = new FormData();
   fd.append('title',     title);
   fd.append('date',      date);
@@ -225,16 +242,19 @@ async function saveActivity() {
   fd.append('cost',      document.getElementById('actCost').value);
   fd.append('notes',     document.getElementById('actNotes').value.trim());
   fd.append('tipo',      document.getElementById('actTipo').value);
-  const cultureId = document.getElementById('actCulture').value;
-  if (cultureId) fd.append('cultureId', cultureId);
-  if (fileInput?.files[0]) fd.append('photo', fileInput.files[0]);
+  if (cultureId)  fd.append('cultureId',  cultureId);
+  if (propertyId) fd.append('propertyId', propertyId);
 
   setLoading(btn, true);
   try {
     if (id) {
-      const data = Object.fromEntries([...fd.entries()].filter(([k]) => k !== 'photo'));
+      // Edição: enviar JSON sem o campo de arquivo (não suportado)
+      const data = Object.fromEntries(fd.entries());
       await updateActivity(id, data);
     } else {
+      // Criação: enviar FormData com arquivo opcional
+      const fileInput = document.getElementById('actFile');
+      if (fileInput?.files[0]) fd.append('photo', fileInput.files[0]);
       await createActivity(fd);
     }
     showToast(id ? 'Atividade atualizada.' : 'Atividade criada.', 'success');

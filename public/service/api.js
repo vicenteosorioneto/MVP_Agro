@@ -19,6 +19,9 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// Guard: evita múltiplos redirects simultâneos quando várias requests retornam 401
+let _isRedirecting = false;
+
 async function request(method, path, body = null, isFormData = false) {
   const headers = { ...authHeaders() };
   if (body && !isFormData) headers['Content-Type'] = 'application/json';
@@ -29,15 +32,27 @@ async function request(method, path, body = null, isFormData = false) {
   const res = await fetch(`${API_BASE_URL}${path}`, options);
 
   if (res.status === 401) {
-    localStorage.removeItem('agro_token');
-    localStorage.removeItem('agro_user');
-    window.location.href = '/index.html';
+    if (!_isRedirecting) {
+      _isRedirecting = true;
+      localStorage.removeItem('agro_token');
+      localStorage.removeItem('agro_user');
+      window.location.href = '/index.html';
+    }
     return;
   }
 
   if (!res.ok) {
     let msg = `Erro ${res.status}`;
-    try { const d = await res.json(); msg = d.message || d.error || msg; } catch {}
+    try {
+      const d = await res.json();
+      // Tenta extrair mensagem em vários formatos comuns de backend
+      msg = d.message
+        || d.error
+        || d.msg
+        || d.data?.message
+        || (d.errors && Object.values(d.errors).flat()[0])
+        || msg;
+    } catch {}
     throw new Error(msg);
   }
 
@@ -48,30 +63,37 @@ async function request(method, path, body = null, isFormData = false) {
   return res.blob();
 }
 
-// Auth
+/**
+ * Normaliza a resposta da API nos formatos:
+ *   { success: true, data: ... }  → retorna data
+ *   array direto                  → retorna o array
+ *   { [legacyKey]: ... }          → retorna res[legacyKey]
+ *   objeto direto                 → retorna o objeto
+ */
+export function extractData(res, legacyKey = null) {
+  if (res === null || res === undefined) return legacyKey ? [] : null;
+  if (Array.isArray(res)) return res;
+  if (res.data !== undefined) return res.data;
+  if (legacyKey && res[legacyKey] !== undefined) return res[legacyKey];
+  return res;
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
 export async function login(email, password) {
   const data = await request('POST', '/auth/login', { email, password });
-
-  // Backend pode retornar token em qualquer um desses campos
   const token = data?.token || data?.accessToken || data?.data?.token || data?.data?.accessToken;
   const user  = data?.user  || data?.data?.user;
-
   if (token) localStorage.setItem('agro_token', token);
   if (user)  localStorage.setItem('agro_user', JSON.stringify(user));
-
   return data;
 }
 
 export async function register(name, email, password) {
   const data = await request('POST', '/auth/register', { name, email, password });
-
-  // Se o backend retornar token no cadastro, salvar e fazer login automático
   const token = data?.token || data?.accessToken || data?.data?.token || data?.data?.accessToken;
   const user  = data?.user  || data?.data?.user;
-
   if (token) localStorage.setItem('agro_token', token);
   if (user)  localStorage.setItem('agro_user', JSON.stringify(user));
-
   return data;
 }
 
@@ -85,7 +107,6 @@ export function getCurrentUser() {
   try {
     const user = JSON.parse(localStorage.getItem('agro_user'));
     if (user) return user;
-    // Se só o token foi salvo (backend não retornou user), retornar objeto mínimo
     const token = localStorage.getItem('agro_token');
     return token ? { _tokenOnly: true } : null;
   } catch {
@@ -93,13 +114,13 @@ export function getCurrentUser() {
   }
 }
 
-// Properties
+// ── Properties ────────────────────────────────────────────────────────────────
 export function getProperties() { return request('GET', '/properties'); }
 export function createProperty(data) { return request('POST', '/properties', data); }
 export function updateProperty(id, data) { return request('PUT', `/properties/${id}`, data); }
 export function deleteProperty(id) { return request('DELETE', `/properties/${id}`); }
 
-// Cultures
+// ── Cultures ──────────────────────────────────────────────────────────────────
 export function getCultures(params = {}) {
   const qs = new URLSearchParams(params).toString();
   return request('GET', `/cultures${qs ? '?' + qs : ''}`);
@@ -108,7 +129,7 @@ export function createCulture(data) { return request('POST', '/cultures', data);
 export function updateCulture(id, data) { return request('PUT', `/cultures/${id}`, data); }
 export function deleteCulture(id) { return request('DELETE', `/cultures/${id}`); }
 
-// Activities
+// ── Activities ────────────────────────────────────────────────────────────────
 export function getActivities(params = {}) {
   const qs = new URLSearchParams(params).toString();
   return request('GET', `/activities${qs ? '?' + qs : ''}`);
@@ -116,27 +137,29 @@ export function getActivities(params = {}) {
 export function createActivity(formData) { return request('POST', '/activities', formData, true); }
 export function updateActivity(id, data) { return request('PUT', `/activities/${id}`, data); }
 export function deleteActivity(id) { return request('DELETE', `/activities/${id}`); }
-export function completeActivity(id) { return request('PATCH', `/activities/${id}/status`, { status: 'concluida' }); }
+// Envia 'completed' (valor EN) que é o que o backend armazena
+export function completeActivity(id) { return request('PATCH', `/activities/${id}/status`, { status: 'completed' }); }
 
-// Dashboard
+// ── Dashboard ─────────────────────────────────────────────────────────────────
 export function getDashboard() { return request('GET', '/dashboard'); }
 
-// Finance
+// ── Finance ───────────────────────────────────────────────────────────────────
 export function getFinance() { return request('GET', '/finance'); }
 
-// Alerts
+// ── Alerts ────────────────────────────────────────────────────────────────────
 export function getAlerts() { return request('GET', '/alerts'); }
 export function generateAlerts() { return request('POST', '/alerts/generate'); }
 export function markAlertAsRead(id) { return request('PATCH', `/alerts/${id}/read`); }
+export function markAllAlertsRead() { return request('PATCH', '/alerts/read-all'); }
 export function deleteAlert(id) { return request('DELETE', `/alerts/${id}`); }
 
-// History
+// ── History ───────────────────────────────────────────────────────────────────
 export function getHistory(params = {}) {
   const qs = new URLSearchParams(params).toString();
   return request('GET', `/history${qs ? '?' + qs : ''}`);
 }
 
-// Files
+// ── Files ─────────────────────────────────────────────────────────────────────
 export function getFiles(params = {}) {
   const qs = new URLSearchParams(params).toString();
   return request('GET', `/files${qs ? '?' + qs : ''}`);
@@ -144,9 +167,10 @@ export function getFiles(params = {}) {
 export function uploadFile(formData) { return request('POST', '/files/upload', formData, true); }
 export function deleteFile(id) { return request('DELETE', `/files/${id}`); }
 
-// Reports
+// ── Reports ───────────────────────────────────────────────────────────────────
 export async function downloadPdf() {
   const blob = await request('GET', '/reports/pdf');
+  if (!blob) return;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'relatorio.pdf'; a.click();
@@ -155,6 +179,7 @@ export async function downloadPdf() {
 
 export async function downloadCsv() {
   const blob = await request('GET', '/reports/csv');
+  if (!blob) return;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'relatorio.csv'; a.click();

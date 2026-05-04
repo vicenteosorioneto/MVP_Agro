@@ -1,4 +1,4 @@
-import { getFinance, getActivities, getCultures } from '../service/api.js';
+import { getFinance, getActivities, getCultures, extractData } from '../service/api.js';
 import { showToast, formatCurrency, formatPercent, emptyState } from './utils.js';
 import { getPropertiesCache } from './properties.js';
 
@@ -17,7 +17,9 @@ export async function loadFinance() {
     if (hasFilters) {
       d = await fetchFinanceFiltered(params);
     } else {
-      d = await getFinance();
+      const raw = await getFinance();
+      // Suporta { success, data: {...} } e resposta direta
+      d = extractData(raw) ?? {};
     }
 
     setText('finCostTotal',   formatCurrency(d.totalCost));
@@ -45,7 +47,7 @@ function readFinanceFilters() {
 
 function populateFinancePropertyFilter() {
   const sel = document.getElementById('filterFinProp');
-  if (!sel || sel.options.length > 1) return; // already populated
+  if (!sel || sel.options.length > 1) return;
   const props = getPropertiesCache();
   props.forEach(p => {
     const o = document.createElement('option');
@@ -55,7 +57,7 @@ function populateFinancePropertyFilter() {
 }
 
 async function fetchFinanceFiltered(params) {
-  const actParams = {};
+  const actParams  = {};
   const cultParams = {};
   if (params.startDate)  actParams.startDate  = params.startDate;
   if (params.endDate)    actParams.endDate    = params.endDate;
@@ -75,10 +77,10 @@ async function fetchFinanceFiltered(params) {
 }
 
 function computeFinance(activities, cultures) {
-  const totalCost     = activities.reduce((s, a) => s + (Number(a.cost) || 0), 0);
-  const totalRevenue  = cultures.reduce((s, c) => s + (Number(c.expectedRevenue) || 0), 0);
+  const totalCost       = activities.reduce((s, a) => s + (Number(a.cost) || 0), 0);
+  const totalRevenue    = cultures.reduce((s, c) => s + (Number(c.expectedRevenue) || 0), 0);
   const estimatedProfit = totalRevenue - totalCost;
-  const marginPercent = totalRevenue > 0
+  const marginPercent   = totalRevenue > 0
     ? Number(((estimatedProfit / totalRevenue) * 100).toFixed(2))
     : 0;
 

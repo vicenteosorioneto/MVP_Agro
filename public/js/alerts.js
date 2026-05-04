@@ -1,5 +1,5 @@
-import { getAlerts, generateAlerts, markAlertAsRead, deleteAlert } from '../service/api.js';
-import { showToast, emptyState, formatDate } from './utils.js';
+import { getAlerts, generateAlerts, markAlertAsRead, markAllAlertsRead, deleteAlert } from '../service/api.js';
+import { showToast, emptyState, formatDate, setLoading } from './utils.js';
 
 const TYPE_MAP = {
   late_activity:        { icon: '⏰', cls: 'alert-red',    label: 'Atividade atrasada' },
@@ -66,29 +66,35 @@ function updateMarkAllBtn(alerts) {
 }
 
 export function initAlerts() {
-  document.getElementById('generateAlertsBtn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('generateAlertsBtn');
-    btn.disabled = true; btn.textContent = 'Gerando...';
+  document.getElementById('generateAlertsBtn')?.addEventListener('click', async e => {
+    const btn = e.currentTarget;
+    setLoading(btn, true, 'Gerando...');
     try {
       const res = await generateAlerts();
       const count = res?.data?.length ?? res?.count ?? null;
       showToast(count != null ? `${count} alerta(s) gerado(s)!` : 'Alertas gerados!', 'success');
       loadAlerts();
     } catch (e) { showToast('Erro: ' + e.message); }
-    finally { btn.disabled = false; btn.textContent = '⚡ Gerar alertas'; }
+    finally { setLoading(btn, false, '⚡ Gerar alertas'); }
   });
 
-  document.getElementById('markAllReadBtn')?.addEventListener('click', async () => {
-    const btn = document.getElementById('markAllReadBtn');
+  document.getElementById('markAllReadBtn')?.addEventListener('click', async e => {
+    const btn = e.currentTarget;
     const unread = alertsCache.filter(a => !a.read);
     if (!unread.length) { showToast('Nenhum alerta não lido.', 'success'); return; }
-    btn.disabled = true; btn.textContent = 'Marcando...';
+
+    setLoading(btn, true, 'Marcando...');
     try {
-      await Promise.all(unread.map(a => markAlertAsRead(a.id || a._id)));
+      // Tenta endpoint bulk; se não existir, cai no fallback individual
+      try {
+        await markAllAlertsRead();
+      } catch {
+        await Promise.all(unread.map(a => markAlertAsRead(a.id || a._id)));
+      }
       showToast(`${unread.length} alerta(s) marcado(s) como lido.`, 'success');
       loadAlerts();
     } catch (e) { showToast('Erro: ' + e.message); }
-    finally { btn.disabled = false; btn.textContent = '✓ Marcar todos como lido'; }
+    finally { setLoading(btn, false, '✓ Marcar todos como lido'); }
   });
 
   document.getElementById('alertsList')?.addEventListener('click', async e => {

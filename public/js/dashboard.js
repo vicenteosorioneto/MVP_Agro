@@ -1,4 +1,4 @@
-import { getDashboard, getProperties, getCultures, getActivities, getFinance } from '../service/api.js';
+import { getDashboard, getProperties, getCultures, getActivities, getFinance, extractData } from '../service/api.js';
 import { formatCurrency, formatPercent, formatDate, showToast, emptyState } from './utils.js';
 
 const REFRESH_INTERVAL = 5 * 60 * 1000;
@@ -22,12 +22,14 @@ export async function loadDashboard() {
 }
 
 async function fetchDashboardData() {
+  // Tenta endpoint dedicado primeiro
   try {
     const raw = await getDashboard();
-    const d = raw?.data ?? raw;
+    const d = extractData(raw);
     if (d && typeof d === 'object' && d.totalProperties !== undefined) return d;
   } catch {}
 
+  // Fallback: compõe os dados manualmente
   const [propsResult, culturesResult, activitiesResult, financeResult] = await Promise.allSettled([
     getProperties(),
     getCultures(),
@@ -35,12 +37,17 @@ async function fetchDashboardData() {
     getFinance(),
   ]);
 
-  const toArray = (res, key) => Array.isArray(res) ? res : (res?.[key] ?? res?.data ?? []);
+  const toArray = (res, key) => {
+    const d = extractData(res, key);
+    return Array.isArray(d) ? d : [];
+  };
 
   const properties = propsResult.status === 'fulfilled'      ? toArray(propsResult.value,      'properties') : [];
   const cultures   = culturesResult.status === 'fulfilled'   ? toArray(culturesResult.value,   'cultures')   : [];
   const activities = activitiesResult.status === 'fulfilled' ? toArray(activitiesResult.value, 'activities') : [];
-  const fin        = financeResult.status === 'fulfilled'    ? (financeResult.value ?? {})                   : {};
+  // Finance pode vir em { success, data } ou direto
+  const finRaw     = financeResult.status === 'fulfilled'    ? financeResult.value : null;
+  const fin        = (extractData(finRaw) ?? {});
 
   const activeCultures    = cultures.filter(c => ['ativa', 'active', 'plantada'].includes(c.status));
   const pendingActivities = activities.filter(a => ['pendente', 'pending'].includes(a.status));
@@ -76,12 +83,12 @@ async function fetchDashboardData() {
 }
 
 function renderDashboard(d) {
-  set('kpiProps',          d.totalProperties   ?? '-');
-  set('kpiCultures',       d.totalCultures     ?? '-');
-  set('kpiActiveCultures', d.activeCultures    ?? '-');
-  set('kpiPending',        d.pendingActivities ?? '-');
-  set('kpiDone',           d.doneActivities    ?? '-');
-  set('kpiLate',           d.lateActivities    ?? '-');
+  set('kpiProps',          d.totalProperties   ?? 0);
+  set('kpiCultures',       d.totalCultures     ?? 0);
+  set('kpiActiveCultures', d.activeCultures    ?? 0);
+  set('kpiPending',        d.pendingActivities ?? 0);
+  set('kpiDone',           d.doneActivities    ?? 0);
+  set('kpiLate',           d.lateActivities    ?? 0);
   set('kpiCost',           formatCurrency(d.totalCost));
   set('kpiRevenue',        formatCurrency(d.expectedRevenue));
   set('kpiProfit',         formatCurrency(d.estimatedProfit));
@@ -143,7 +150,7 @@ function renderActivityChart(d) {
   const el = document.getElementById('dashActivityChart');
   if (!el) return;
   const total = (d.pendingActivities || 0) + (d.doneActivities || 0) + (d.lateActivities || 0);
-  if (!total) { el.innerHTML = emptyState('📋', 'Sem atividades'); return; }
+  if (!total) { el.innerHTML = emptyState('📋', 'Sem atividades cadastradas'); return; }
 
   const bars = [
     { label: 'Pendentes',  val: d.pendingActivities || 0, cls: 'bar-yellow', screen: 'activities', filters: { status: 'pendente' } },
