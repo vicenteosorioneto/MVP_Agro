@@ -1,7 +1,7 @@
 {
-  "name": "mvp_agro-frontend",
+  "name": "agroflow-frontend",
   "version": "1.0.0",
-  "description": "Frontend do MVP Agro consumindo API externa.",
+  "description": "Frontend do AgroFlow consumindo API externa.",
   "scripts": {
     "start": "npx serve public"
   },

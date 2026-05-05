@@ -1,4 +1,4 @@
-# MVP Agro - Funcionalidades e Arquitetura Existentes
+# AgroFlow - Funcionalidades e Arquitetura Existentes
 
 ## Visão geral
 

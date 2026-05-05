@@ -17,7 +17,7 @@
       <div class="sidebar-logo-wrap">🌿</div>
       <div class="sidebar-brand-text">
         <h2>AgroFlow</h2>
-        <p class="sidebar-brand-sub">Gestão agrícola</p>
+        <p class="sidebar-brand-sub">Sistema inteligente de gestão agrícola</p>
       </div>
     </div>
 
@@ -79,7 +79,7 @@
       <button class="btn-menu" id="menuBtn">☰</button>
       <span class="header-title" id="headerTitle">Dashboard</span>
       <div class="header-actions">
-        <div id="globalToast" class="toast hidden" style="margin:0;position:fixed;top:16px;right:16px;z-index:999;min-width:260px;max-width:360px;"></div>
+        <div id="globalToast" class="toast toast-global hidden"></div>
       </div>
     </header>
 
@@ -87,9 +87,9 @@
     <section id="dashboard" class="screen active">
       <div class="page-header">
         <div><h2>Dashboard</h2><p>Visão geral da sua operação agrícola</p></div>
-        <div class="page-header-actions" style="display:flex;align-items:center;gap:12px;">
-          <span id="dashLastUpdated" style="font-size:.78rem;color:var(--gray-400);"></span>
-          <button class="btn btn-secondary btn-sm" id="dashRefreshBtn">↻ Atualizar</button>
+        <div class="page-header-actions page-header-actions-refresh">
+          <span id="dashLastUpdated" class="last-updated"></span>
+          <button class="btn btn-secondary btn-sm btn-refresh" id="dashRefreshBtn">↻ Atualizar</button>
         </div>
       </div>
 
@@ -277,7 +277,7 @@
       <div class="page-header">
         <div><h2>Financeiro</h2><p>Custos, receitas e margens por cultura</p></div>
         <div class="page-header-actions">
-          <button class="btn btn-secondary btn-sm" id="financeRefreshBtn">↻ Atualizar</button>
+          <button class="btn btn-secondary btn-sm btn-refresh" id="financeRefreshBtn">↻ Atualizar</button>
         </div>
       </div>
 
@@ -339,7 +339,7 @@
       <div class="page-header">
         <div><h2>Histórico</h2><p>Timeline de atividades por cultura</p></div>
         <div class="page-header-actions">
-          <div class="field" style="margin:0">
+          <div class="field field-inline">
             <select id="filterHistCulture"><option value="">Todas as culturas</option></select>
           </div>
         </div>
@@ -355,7 +355,7 @@
     <section id="alerts" class="screen">
       <div class="page-header">
         <div><h2>Alertas</h2><p>Notificações e avisos importantes</p></div>
-        <div class="page-header-actions" style="gap:8px;">
+        <div class="page-header-actions page-header-actions-tight">
           <button class="btn btn-secondary btn-sm" id="markAllReadBtn">✓ Marcar todos como lido</button>
           <button class="btn btn-secondary btn-sm" id="generateAlertsBtn">⚡ Gerar alertas</button>
         </div>
@@ -371,42 +371,42 @@
         <div><h2>Relatórios</h2><p>Exporte dados da sua operação</p></div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div class="card" style="text-align:center;padding:40px 24px;">
-          <div style="font-size:3rem;margin-bottom:16px;">📄</div>
-          <h3 style="margin-bottom:8px;">Relatório PDF</h3>
-          <p style="color:var(--gray-500);margin-bottom:20px;font-size:.9rem;">Relatório completo com todas as informações da safra em formato PDF.</p>
+      <div class="reports-grid">
+        <div class="card report-card">
+          <div class="report-icon">📄</div>
+          <h3>Relatório PDF</h3>
+          <p>Relatório completo com todas as informações da safra em formato PDF.</p>
           <button class="btn btn-primary" id="downloadPdfBtn">Baixar PDF</button>
         </div>
-        <div class="card" style="text-align:center;padding:40px 24px;">
-          <div style="font-size:3rem;margin-bottom:16px;">📊</div>
-          <h3 style="margin-bottom:8px;">Relatório CSV</h3>
-          <p style="color:var(--gray-500);margin-bottom:20px;font-size:.9rem;">Dados exportados em planilha CSV para análise em Excel ou Google Sheets.</p>
+        <div class="card report-card">
+          <div class="report-icon">📊</div>
+          <h3>Relatório CSV</h3>
+          <p>Dados exportados em planilha CSV para análise em Excel ou Google Sheets.</p>
           <button class="btn btn-secondary" id="downloadCsvBtn">Baixar CSV</button>
         </div>
       </div>
 
-      <div class="card section-gap" style="margin-top:20px;">
+      <div class="card section-gap section-card">
         <div class="card-header"><span class="card-title">Upload de arquivo</span></div>
-        <p style="color:var(--gray-500);font-size:.9rem;margin-bottom:16px;">Anexe fotos, documentos ou comprovantes vinculados a uma cultura.</p>
+        <p class="section-description">Anexe fotos, documentos ou comprovantes vinculados a uma cultura.</p>
         <form id="uploadForm">
-          <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;gap:12px;">
-            <div class="field" style="margin:0;min-width:180px;">
+          <div class="upload-form-row">
+            <div class="field upload-field upload-field-culture">
               <label>Cultura (opcional)</label>
               <select id="uploadCulture"><option value="">Nenhuma</option></select>
             </div>
-            <div class="field" style="margin:0;flex:1;min-width:200px;">
+            <div class="field upload-field upload-field-file">
               <label>Arquivo</label>
               <input type="file" name="file" required />
             </div>
             <button class="btn btn-primary" type="submit">Enviar arquivo</button>
           </div>
         </form>
-        <div id="uploadResult" style="margin-top:12px;"></div>
+        <div id="uploadResult" class="upload-result"></div>
       </div>
 
-      <div class="card section-gap" style="margin-top:20px;">
-        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="card section-gap section-card">
+        <div class="card-header">
           <span class="card-title">Arquivos enviados</span>
           <button class="btn btn-secondary btn-sm" id="refreshFilesBtn">↻ Atualizar</button>
         </div>
@@ -519,8 +519,8 @@
       </div>
     </div>
     <div class="field"><label>Custo (R$)</label><input type="number" id="actCost" min="0" step="0.01" value="0" /></div>
-    <div id="actCurrentPhoto" style="display:none;margin-bottom:8px;padding:8px;background:var(--gray-50,#f9fafb);border-radius:6px;border:1px solid var(--gray-200,#e5e7eb);font-size:.85rem;"></div>
-    <div class="field"><label>Foto / Documento <span style="color:var(--gray-400);font-weight:400;font-size:.8rem;">(substituir foto existente)</span></label><input type="file" id="actFile" accept="image/*,.pdf,.doc,.docx" /></div>
+    <div id="actCurrentPhoto" class="current-photo-box"></div>
+    <div class="field"><label>Foto / Documento <span class="field-hint">(substituir foto existente)</span></label><input type="file" id="actFile" accept="image/*,.pdf,.doc,.docx" /></div>
     <div class="field"><label>Observações</label><textarea id="actNotes" rows="2"></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" id="cancelActivityModal">Cancelar</button>
@@ -531,11 +531,11 @@
 
 <!-- Modal Confirmação Delete -->
 <div class="modal-overlay" id="deleteModal">
-  <div class="modal" style="max-width:380px;text-align:center;">
-    <div style="font-size:2.5rem;margin-bottom:12px;">⚠️</div>
+  <div class="modal modal-confirm">
+    <div class="modal-confirm-icon">⚠️</div>
     <h3 id="deleteModalTitle">Confirmar exclusão</h3>
-    <p style="color:var(--gray-500);margin:12px 0 24px;" id="deleteModalDesc">Esta ação não pode ser desfeita.</p>
-    <div class="modal-footer" style="justify-content:center;">
+    <p id="deleteModalDesc">Esta ação não pode ser desfeita.</p>
+    <div class="modal-footer modal-footer-center">
       <button class="btn btn-secondary" id="cancelDeleteModal">Cancelar</button>
       <button class="btn btn-danger" id="confirmDeleteBtn">Excluir</button>
     </div>
