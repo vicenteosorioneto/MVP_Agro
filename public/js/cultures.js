@@ -6,7 +6,9 @@ let cultures = [];
 let pendingHighlight = null;
 
 // API status EN → PT select value
-const STATUS_TO_SELECT = { active: 'ativa', harvested: 'colhida', cancelled: 'cancelada', planejada: 'planejada', ativa: 'ativa', colhida: 'colhida' };
+const STATUS_TO_SELECT = { active: 'ativa', harvested: 'colhida', cancelled: 'cancelada', planned: 'planejada', planejada: 'planejada', ativa: 'ativa', colhida: 'colhida' };
+// Select PT → backend EN
+const SELECT_TO_STATUS = { planejada: 'planned', ativa: 'active', colhida: 'harvested' };
 
 export function getCulturesCache() { return cultures; }
 
@@ -169,7 +171,7 @@ async function saveCulture() {
     propertyId:      document.getElementById('cultureProperty').value || undefined,
     plantingDate,
     harvestDate,
-    status:          document.getElementById('cultureStatus').value,
+    status:          SELECT_TO_STATUS[document.getElementById('cultureStatus').value] ?? document.getElementById('cultureStatus').value,
     area:            areaVal !== '' && areaVal != null ? parseFloat(areaVal) : null,
     expectedRevenue: parseFloat(document.getElementById('cultureRevenue').value) || 0,
     notes:           document.getElementById('cultureNotes').value.trim(),

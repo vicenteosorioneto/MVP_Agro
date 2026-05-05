@@ -130,16 +130,6 @@ async function fetchFinanceFiltered(params) {
     });
   }
 
-  console.log('[Finance] Filtro aplicado:', {
-    propertyId: params.propertyId || '(todos)',
-    startDate:  params.startDate  || '',
-    endDate:    params.endDate    || '',
-    activities: activities.length,
-    cultures:   cultures.length,
-    sampleActivity: activities[0] || null,
-    sampleCulture:  cultures[0]   || null,
-  });
-
   return computeFinance(activities, cultures);
 }
 

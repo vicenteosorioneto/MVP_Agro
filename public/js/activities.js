@@ -8,6 +8,8 @@ const ACTIVITY_TYPES = ['Outro', 'Plantio', 'Irrigação', 'Adubação', 'Pulver
 
 // Backend retorna status EN → valor do select PT
 const STATUS_TO_SELECT = { completed: 'concluida', pending: 'pendente', delayed: 'pendente' };
+// Select PT → backend EN
+const SELECT_TO_STATUS = { pendente: 'pending', concluida: 'completed' };
 
 function navigate(screen, filters = {}) {
   document.dispatchEvent(new CustomEvent('agro:navigate', { detail: { screen, filters } }));
@@ -238,7 +240,8 @@ async function saveActivity() {
   fd.append('title',     title);
   fd.append('date',      date);
   fd.append('assignee',  document.getElementById('actAssignee').value.trim());
-  fd.append('status',    document.getElementById('actStatus').value);
+  const rawStatus = document.getElementById('actStatus').value;
+  fd.append('status', SELECT_TO_STATUS[rawStatus] ?? rawStatus);
   fd.append('cost',      document.getElementById('actCost').value);
   fd.append('notes',     document.getElementById('actNotes').value.trim());
   fd.append('tipo',      document.getElementById('actTipo').value);
