@@ -10,22 +10,36 @@ export async function loadFinance() {
   populateFinancePropertyFilter();
   setFinanceLoading(true);
   try {
-    const params = readFinanceFilters();
-    const hasFilters = params.startDate || params.endDate || params.propertyId;
+    const params   = readFinanceFilters();
+    const hasFilters = !!(params.propertyId || params.startDate || params.endDate);
 
     let d;
     if (hasFilters) {
-      d = await fetchFinanceFiltered(params);
+      // Tenta endpoint /finance?params= primeiro; faz fallback local se não tiver breakdown
+      try {
+        const raw = await getFinance(params);
+        const candidate = extractData(raw) ?? {};
+        // Usa a resposta do backend se tiver os dados computados de breakdown
+        if (candidate.byCulture || candidate.byActivityType || candidate.byMonth) {
+          d = candidate;
+        }
+      } catch {}
+
+      // Fallback: calcula manualmente buscando activities + cultures filtrados
+      if (!d) d = await fetchFinanceFiltered(params);
     } else {
       const raw = await getFinance();
-      // Suporta { success, data: {...} } e resposta direta
       d = extractData(raw) ?? {};
+      // Se o endpoint não retornar breakdown, calcula localmente
+      if (!d.byCulture && !d.byActivityType && !d.byMonth) {
+        d = await fetchFinanceFiltered({});
+      }
     }
 
-    setText('finCostTotal',   formatCurrency(d.totalCost));
-    setText('finRevTotal',    formatCurrency(d.expectedRevenue));
-    setText('finProfitTotal', formatCurrency(d.estimatedProfit));
-    setText('finMargin',      formatPercent(d.marginPercent));
+    setText('finCostTotal',   formatCurrency(d.totalCost       ?? 0));
+    setText('finRevTotal',    formatCurrency(d.expectedRevenue ?? 0));
+    setText('finProfitTotal', formatCurrency(d.estimatedProfit ?? 0));
+    setText('finMargin',      formatPercent(d.marginPercent    ?? 0));
 
     renderByCulture(d.byCulture);
     renderByType(d.byActivityType);
@@ -39,26 +53,49 @@ export async function loadFinance() {
 
 function readFinanceFilters() {
   return {
-    propertyId: document.getElementById('filterFinProp')?.value || '',
+    propertyId: document.getElementById('filterFinProp')?.value  || '',
     startDate:  document.getElementById('filterFinStart')?.value || '',
-    endDate:    document.getElementById('filterFinEnd')?.value || '',
+    endDate:    document.getElementById('filterFinEnd')?.value   || '',
   };
 }
 
 function populateFinancePropertyFilter() {
   const sel = document.getElementById('filterFinProp');
-  if (!sel || sel.options.length > 1) return;
+  if (!sel) return;
   const props = getPropertiesCache();
+  if (!props.length) return; // ainda não carregou — reabre na próxima chamada
+
+  const currentVal = sel.value; // preserva seleção atual
+  sel.innerHTML = '<option value="">Todas</option>';
   props.forEach(p => {
     const o = document.createElement('option');
-    o.value = p.id || p._id; o.textContent = p.name;
+    o.value = p.id || p._id;
+    o.textContent = p.name;
     sel.appendChild(o);
   });
+  if (currentVal) sel.value = currentVal; // restaura seleção
+}
+
+// Normaliza onde o propertyId pode estar em um objeto da API
+function resolvePropertyId(item) {
+  return item?.propertyId
+      || item?.property?._id
+      || item?.property?.id
+      || '';
+}
+
+// Normaliza onde o cultureId pode estar em uma atividade
+function resolveCultureId(item) {
+  return item?.cultureId
+      || item?.culture?._id
+      || item?.culture?.id
+      || '';
 }
 
 async function fetchFinanceFiltered(params) {
   const actParams  = {};
   const cultParams = {};
+
   if (params.startDate)  actParams.startDate  = params.startDate;
   if (params.endDate)    actParams.endDate    = params.endDate;
   if (params.propertyId) {
@@ -70,8 +107,38 @@ async function fetchFinanceFiltered(params) {
     getActivities(actParams),
     getCultures(cultParams),
   ]);
-  const activities = Array.isArray(activitiesRes) ? activitiesRes : (activitiesRes.data ?? activitiesRes.activities ?? []);
-  const cultures   = Array.isArray(culturesRes)   ? culturesRes   : (culturesRes.data   ?? culturesRes.cultures   ?? []);
+
+  // extractData cobre { success, data: [...] } e array direto
+  let activities = extractData(activitiesRes, 'activities');
+  let cultures   = extractData(culturesRes,   'cultures');
+  if (!Array.isArray(activities)) activities = [];
+  if (!Array.isArray(cultures))   cultures   = [];
+
+  // Filtro client-side por propertyId como rede de segurança
+  // (garante resultado correto mesmo se o backend ignorar o query param)
+  if (params.propertyId) {
+    const pid = String(params.propertyId);
+
+    cultures = cultures.filter(c => String(resolvePropertyId(c)) === pid);
+
+    // Para atividades: usa propertyId direto OU verifica se a cultura pertence à propriedade
+    const cultureIds = new Set(cultures.map(c => String(c.id || c._id || '')));
+    activities = activities.filter(a => {
+      if (String(resolvePropertyId(a)) === pid) return true;
+      const actCultureId = String(resolveCultureId(a));
+      return actCultureId !== '' && cultureIds.has(actCultureId);
+    });
+  }
+
+  console.log('[Finance] Filtro aplicado:', {
+    propertyId: params.propertyId || '(todos)',
+    startDate:  params.startDate  || '',
+    endDate:    params.endDate    || '',
+    activities: activities.length,
+    cultures:   cultures.length,
+    sampleActivity: activities[0] || null,
+    sampleCulture:  cultures[0]   || null,
+  });
 
   return computeFinance(activities, cultures);
 }
@@ -85,10 +152,19 @@ function computeFinance(activities, cultures) {
     : 0;
 
   const byCulture = cultures.map(c => {
+    const cid = String(c.id || c._id || '');
     const cost = activities
-      .filter(a => a.cultureId === (c.id || c._id))
+      .filter(a => {
+        const aCultureId = String(resolveCultureId(a));
+        return aCultureId !== '' && aCultureId === cid;
+      })
       .reduce((s, a) => s + (Number(a.cost) || 0), 0);
-    return { cultureName: c.name, cultureId: c.id || c._id, cost, expectedRevenue: c.expectedRevenue };
+    return {
+      cultureName:     c.name,
+      cultureId:       cid,
+      cost,
+      expectedRevenue: Number(c.expectedRevenue) || 0,
+    };
   });
 
   const monthMap = {};
@@ -102,7 +178,7 @@ function computeFinance(activities, cultures) {
 
   const typeMap = {};
   activities.forEach(a => {
-    const t = a.tipo || 'Outro';
+    const t = a.tipo || a.type || 'Outro';
     typeMap[t] = (typeMap[t] || 0) + (Number(a.cost) || 0);
   });
   const byActivityType = Object.entries(typeMap)
@@ -127,7 +203,7 @@ function setText(id, val) {
 function renderByCulture(data) {
   const el = document.getElementById('finByCulture');
   if (!el) return;
-  if (!data?.length) { el.innerHTML = emptyState('💰', 'Sem dados'); return; }
+  if (!data?.length) { el.innerHTML = emptyState('💰', 'Sem dados para esta seleção'); return; }
   const max = Math.max(...data.map(d => d.cost || 0), 1);
   el.innerHTML = data.map(d => `
     <div class="finance-bar fin-culture-bar" data-culture-id="${d.cultureId || ''}" style="cursor:pointer;border-radius:4px;transition:opacity .15s;">
@@ -136,7 +212,7 @@ function renderByCulture(data) {
         <span>${formatCurrency(d.cost)}</span>
       </div>
       <div class="finance-bar-track">
-        <div class="finance-bar-fill" style="width:${Math.round((d.cost/max)*100)}%"></div>
+        <div class="finance-bar-fill" style="width:${Math.round((d.cost / max) * 100)}%"></div>
       </div>
     </div>`).join('');
 
@@ -163,7 +239,7 @@ function renderByType(data) {
         <span>${formatCurrency(d.cost)}</span>
       </div>
       <div class="finance-bar-track">
-        <div class="finance-bar-fill bar-yellow" style="width:${Math.round((d.cost/max)*100)}%"></div>
+        <div class="finance-bar-fill bar-yellow" style="width:${Math.round((d.cost / max) * 100)}%"></div>
       </div>
     </div>`).join('');
 }
@@ -175,7 +251,7 @@ function renderByMonth(data) {
   const max = Math.max(...data.map(d => d.cost || 0), 1);
   el.innerHTML = `<div style="display:flex;gap:8px;align-items:flex-end;height:140px;padding:8px 0;">` +
     data.map(d => {
-      const h = Math.max(Math.round((d.cost/max)*120), 4);
+      const h = Math.max(Math.round((d.cost / max) * 120), 4);
       return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
         <span style="font-size:.7rem;color:var(--gray-500);">${formatCurrency(d.cost)}</span>
         <div style="width:100%;height:${h}px;background:var(--green-500);border-radius:4px 4px 0 0;"></div>
