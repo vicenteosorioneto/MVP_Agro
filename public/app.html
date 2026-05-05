@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MVP Agro</title>
+  <title>AgroFlow — Gestão Agrícola</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
@@ -14,8 +14,11 @@
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <span class="logo">🌱</span>
-      <h2>MVP Agro</h2>
+      <div class="sidebar-logo-wrap">🌿</div>
+      <div class="sidebar-brand-text">
+        <h2>AgroFlow</h2>
+        <p class="sidebar-brand-sub">Gestão agrícola</p>
+      </div>
     </div>
 
     <nav class="sidebar-nav">
@@ -61,7 +64,10 @@
           <div class="sidebar-user-role" id="userRole">Produtor rural</div>
         </div>
       </div>
-      <button class="btn btn-logout btn-full" id="logoutBtn">Sair</button>
+      <button class="btn btn-logout btn-full" id="logoutBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair da conta
+      </button>
     </div>
   </aside>
 
@@ -88,23 +94,51 @@
       </div>
 
       <div class="kpi-grid" id="dashKpis">
-        <div class="card kpi-card"><div class="kpi-label">Propriedades</div><div class="kpi-value" id="kpiProps">-</div></div>
-        <div class="card kpi-card"><div class="kpi-label">Culturas</div><div class="kpi-value" id="kpiCultures">-</div></div>
-        <div class="card kpi-card kpi-blue"><div class="kpi-label">Culturas ativas</div><div class="kpi-value" id="kpiActiveCultures">-</div></div>
-        <div class="card kpi-card kpi-yellow"><div class="kpi-label">Atividades pendentes</div><div class="kpi-value" id="kpiPending">-</div></div>
-        <div class="card kpi-card"><div class="kpi-label">Atividades concluídas</div><div class="kpi-value" id="kpiDone">-</div></div>
-        <div class="card kpi-card kpi-red"><div class="kpi-label">Atividades atrasadas</div><div class="kpi-value" id="kpiLate">-</div></div>
-        <div class="card kpi-card kpi-red"><div class="kpi-label">Custo total</div><div class="kpi-value" id="kpiCost">-</div></div>
-        <div class="card kpi-card"><div class="kpi-label">Receita prevista</div><div class="kpi-value" id="kpiRevenue">-</div></div>
-        <div class="card kpi-card"><div class="kpi-label">Lucro estimado</div><div class="kpi-value" id="kpiProfit">-</div><div class="kpi-sub" id="kpiMargin">Margem: -</div></div>
+        <div class="card kpi-card">
+          <div class="kpi-header"><div class="kpi-label">Propriedades</div><span class="kpi-icon">🏡</span></div>
+          <div class="kpi-value" id="kpiProps">-</div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-header"><div class="kpi-label">Culturas</div><span class="kpi-icon">🌾</span></div>
+          <div class="kpi-value" id="kpiCultures">-</div>
+        </div>
+        <div class="card kpi-card kpi-blue">
+          <div class="kpi-header"><div class="kpi-label">Culturas ativas</div><span class="kpi-icon">🌱</span></div>
+          <div class="kpi-value" id="kpiActiveCultures">-</div>
+        </div>
+        <div class="card kpi-card kpi-yellow">
+          <div class="kpi-header"><div class="kpi-label">Pendentes</div><span class="kpi-icon">⏳</span></div>
+          <div class="kpi-value" id="kpiPending">-</div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-header"><div class="kpi-label">Concluídas</div><span class="kpi-icon">✅</span></div>
+          <div class="kpi-value" id="kpiDone">-</div>
+        </div>
+        <div class="card kpi-card kpi-red">
+          <div class="kpi-header"><div class="kpi-label">Atrasadas</div><span class="kpi-icon">⚠️</span></div>
+          <div class="kpi-value" id="kpiLate">-</div>
+        </div>
+        <div class="card kpi-card kpi-red">
+          <div class="kpi-header"><div class="kpi-label">Custo total</div><span class="kpi-icon">💸</span></div>
+          <div class="kpi-value kpi-currency" id="kpiCost">-</div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-header"><div class="kpi-label">Receita prevista</div><span class="kpi-icon">📈</span></div>
+          <div class="kpi-value kpi-currency" id="kpiRevenue">-</div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-header"><div class="kpi-label">Lucro estimado</div><span class="kpi-icon">💰</span></div>
+          <div class="kpi-value kpi-currency" id="kpiProfit">-</div>
+          <div class="kpi-sub" id="kpiMargin">Margem: -</div>
+        </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div class="card section-gap">
+      <div class="dash-charts">
+        <div class="card">
           <div class="card-header"><span class="card-title">Atividades por status</span></div>
           <div id="dashActivityChart"></div>
         </div>
-        <div class="card section-gap">
+        <div class="card">
           <div class="card-header"><span class="card-title">Próximas colheitas</span></div>
           <div id="dashHarvests"></div>
         </div>
@@ -264,11 +298,23 @@
         <button class="btn btn-secondary btn-sm" id="clearFinFilters">Limpar</button>
       </div>
 
-      <div class="kpi-grid" id="financeKpis">
-        <div class="card kpi-card kpi-red"><div class="kpi-label">Custo total</div><div class="kpi-value" id="finCostTotal">-</div></div>
-        <div class="card kpi-card"><div class="kpi-label">Receita prevista</div><div class="kpi-value" id="finRevTotal">-</div></div>
-        <div class="card kpi-card"><div class="kpi-label">Lucro estimado</div><div class="kpi-value" id="finProfitTotal">-</div></div>
-        <div class="card kpi-card kpi-blue"><div class="kpi-label">Margem %</div><div class="kpi-value" id="finMargin">-</div></div>
+      <div class="kpi-grid kpi-grid-4" id="financeKpis">
+        <div class="card kpi-card kpi-red">
+          <div class="kpi-header"><div class="kpi-label">Custo total</div><span class="kpi-icon">💸</span></div>
+          <div class="kpi-value kpi-currency" id="finCostTotal">-</div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-header"><div class="kpi-label">Receita prevista</div><span class="kpi-icon">📈</span></div>
+          <div class="kpi-value kpi-currency" id="finRevTotal">-</div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-header"><div class="kpi-label">Lucro estimado</div><span class="kpi-icon">💰</span></div>
+          <div class="kpi-value kpi-currency" id="finProfitTotal">-</div>
+        </div>
+        <div class="card kpi-card kpi-blue">
+          <div class="kpi-header"><div class="kpi-label">Margem</div><span class="kpi-icon">📊</span></div>
+          <div class="kpi-value" id="finMargin">-</div>
+        </div>
       </div>
 
       <div class="finance-grid">
