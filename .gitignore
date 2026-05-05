@@ -1,0 +1,17 @@
+# IDE
+.idea/
+*.iml
+
+# IA / ferramentas locais
+.junie/
+.claude/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
