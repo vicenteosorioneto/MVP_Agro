@@ -12,13 +12,22 @@ const TYPE_MAP = {
 
 let alertsCache = [];
 
+function extractAlerts(res) {
+  if (Array.isArray(res)) return res;
+  const inner = res?.data ?? res?.alerts ?? res;
+  if (Array.isArray(inner)) return inner;
+  if (Array.isArray(inner?.data)) return inner.data;
+  if (Array.isArray(inner?.alerts)) return inner.alerts;
+  return [];
+}
+
 export async function loadAlerts() {
   const el = document.getElementById('alertsList');
   if (!el) return;
   el.innerHTML = '<div class="loading-row"><span class="loading-spinner"></span></div>';
   try {
     const res = await getAlerts();
-    alertsCache = Array.isArray(res) ? res : (res.data ?? res.alerts ?? []);
+    alertsCache = extractAlerts(res);
     renderAlerts(alertsCache);
     updateBadge(alertsCache.filter(a => !a.read).length);
     updateMarkAllBtn(alertsCache);
@@ -29,6 +38,7 @@ export async function loadAlerts() {
 
 function renderAlerts(alerts) {
   const el = document.getElementById('alertsList');
+  if (!Array.isArray(alerts)) alerts = [];
   if (!alerts.length) {
     el.innerHTML = emptyState('🔔', 'Nenhum alerta', 'Tudo certo por aqui!');
     return;
@@ -61,7 +71,8 @@ function updateBadge(count) {
 function updateMarkAllBtn(alerts) {
   const btn = document.getElementById('markAllReadBtn');
   if (!btn) return;
-  const unreadCount = alerts.filter(a => !a.read).length;
+  const list = Array.isArray(alerts) ? alerts : [];
+  const unreadCount = list.filter(a => !a.read).length;
   btn.style.display = unreadCount > 0 ? '' : 'none';
 }
 
@@ -80,7 +91,7 @@ export function initAlerts() {
 
   document.getElementById('markAllReadBtn')?.addEventListener('click', async e => {
     const btn = e.currentTarget;
-    const unread = alertsCache.filter(a => !a.read);
+    const unread = (Array.isArray(alertsCache) ? alertsCache : []).filter(a => !a.read);
     if (!unread.length) { showToast('Nenhum alerta não lido.', 'success'); return; }
 
     setLoading(btn, true, 'Marcando...');
