@@ -8,8 +8,8 @@ const ACTIVITY_TYPES = ['Outro', 'Plantio', 'Irrigação', 'Adubação', 'Pulver
 
 // Backend retorna status EN → valor do select PT
 const STATUS_TO_SELECT = { completed: 'concluida', pending: 'pendente', delayed: 'pendente' };
-// Select PT → backend EN
-const SELECT_TO_STATUS = { pendente: 'pending', concluida: 'completed' };
+// Select PT → backend EN (save & filter)
+const SELECT_TO_STATUS = { pendente: 'pending', concluida: 'completed', atrasada: 'delayed' };
 
 function navigate(screen, filters = {}) {
   document.dispatchEvent(new CustomEvent('agro:navigate', { detail: { screen, filters } }));
@@ -27,7 +27,7 @@ export async function loadActivities() {
   const start   = document.getElementById('filterActStart')?.value;
   const end     = document.getElementById('filterActEnd')?.value;
   const tipo    = document.getElementById('filterActTipo')?.value;
-  if (status)  params.status     = status;
+  if (status)  params.status     = SELECT_TO_STATUS[status] || status;
   if (culture) params.cultureId  = culture;
   if (prop)    params.propertyId = prop;
   if (start)   params.startDate  = start;

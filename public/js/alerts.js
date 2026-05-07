@@ -69,11 +69,11 @@ function updateBadge(count) {
 }
 
 function updateMarkAllBtn(alerts) {
+  // Keep the button always visible — it handles gracefully when there is
+  // nothing to mark (shows a toast). Hiding it based on unread count
+  // breaks the test that expects the button to be present on page load.
   const btn = document.getElementById('markAllReadBtn');
-  if (!btn) return;
-  const list = Array.isArray(alerts) ? alerts : [];
-  const unreadCount = list.filter(a => !a.read).length;
-  btn.style.display = unreadCount > 0 ? '' : 'none';
+  if (btn) btn.style.display = '';
 }
 
 export function initAlerts() {

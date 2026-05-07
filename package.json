@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "description": "Frontend do AgroFlow consumindo API externa.",
   "scripts": {
-    "start": "npx serve public"
+    "start": "npx serve public",
+    "test:api": "powershell -ExecutionPolicy Bypass -File scripts/test-agroflow-api.ps1",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {},
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "serve": "^14.2.0"
   }
 }

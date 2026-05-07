@@ -17,9 +17,9 @@ export function showToast(msg, type = 'error') {
   const el = document.getElementById('globalToast');
   if (!el) return;
   el.textContent = msg;
-  el.className = `toast toast-${type}`;
+  el.className = `toast toast-global toast-${type}`;
   clearTimeout(el._t);
-  el._t = setTimeout(() => { el.className = 'toast hidden'; }, 4000);
+  el._t = setTimeout(() => { el.className = 'toast toast-global hidden'; }, 4000);
 }
 
 export function statusBadge(status) {

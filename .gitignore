@@ -15,3 +15,8 @@ node_modules/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Playwright
+playwright-report/
+test-results/
+tests/e2e/.auth/

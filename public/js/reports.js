@@ -1,8 +1,13 @@
 import { downloadPdf, downloadCsv, uploadFile, getFiles, deleteFile } from '../service/api.js';
 import { showToast, formatDate, confirmDelete } from './utils.js';
 
+let _reportsInited = false;
+
 export function initReports(cultures = [], properties = []) {
   populateUploadCultureSelect(cultures);
+
+  if (_reportsInited) return;
+  _reportsInited = true;
 
   document.getElementById('downloadPdfBtn')?.addEventListener('click', async e => {
     const btn = e.target;
@@ -47,7 +52,7 @@ export function initReports(cultures = [], properties = []) {
   loadFilesList();
 }
 
-function populateUploadCultureSelect(cultures) {
+export function populateUploadCultureSelect(cultures) {
   const sel = document.getElementById('uploadCulture');
   if (!sel) return;
   sel.innerHTML = '<option value="">Nenhuma</option>';

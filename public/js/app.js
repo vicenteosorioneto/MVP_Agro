@@ -6,7 +6,7 @@ import { loadActivities, initActivities, populateActivityFilters } from './activ
 import { loadFinance }    from './finance.js';
 import { loadAlerts, initAlerts } from './alerts.js';
 import { loadHistory, initHistory, populateHistoryCultureFilter } from './history.js';
-import { initReports }    from './reports.js';
+import { initReports, populateUploadCultureSelect } from './reports.js';
 import { closeModal }     from './utils.js';
 
 // ── Auth guard ──────────────────────────────────────────────────────────────
@@ -159,21 +159,29 @@ document.getElementById('clearFinFilters')?.addEventListener('click', () => {
 
 // ── Init all modules ─────────────────────────────────────────────────────────
 async function init() {
+  // Attach all event listeners IMMEDIATELY so modals and buttons work
+  // as soon as the page renders, before any async data is fetched.
+  initProperties();
+  initCultures();
+  initActivities([], []);
+  initAlerts();
+  initHistory();
+  initReports([], []);
+
+  // Now fetch the base data needed by filters and dropdowns.
   await Promise.all([loadProperties(), loadCultures()]);
 
   const props    = getPropertiesCache();
   const cultures = getCulturesCache();
 
-  initProperties();
-  initCultures();
-  initActivities(cultures, props);
-  initAlerts();
-  initHistory();
-  initReports(cultures, props);
-
+  // Repopulate every filter / select with the real data.
   populatePropertyFilter(props);
   populateActivityFilters(cultures, props);
   populateHistoryCultureFilter(cultures);
+  populateUploadCultureSelect(cultures);
+
+  // Signal to tests that core data is ready (properties + cultures loaded).
+  document.body.setAttribute('data-app-ready', '1');
 
   loadDashboard();
   loadAlerts(); // badge on sidebar

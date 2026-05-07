@@ -7,7 +7,7 @@ let pendingHighlight = null;
 
 // API status EN → PT select value
 const STATUS_TO_SELECT = { active: 'ativa', harvested: 'colhida', cancelled: 'cancelada', planned: 'planejada', planejada: 'planejada', ativa: 'ativa', colhida: 'colhida' };
-// Select PT → backend EN
+// Select PT → backend EN (save & filter)
 const SELECT_TO_STATUS = { planejada: 'planned', ativa: 'active', colhida: 'harvested' };
 
 export function getCulturesCache() { return cultures; }
@@ -25,7 +25,7 @@ export async function loadCultures() {
   const prop   = document.getElementById('filterCultureProp')?.value;
   const status = document.getElementById('filterCultureStatus')?.value;
   if (prop)   params.propertyId = prop;
-  if (status) params.status     = status;
+  if (status) params.status     = SELECT_TO_STATUS[status] || status;
 
   try {
     const res = await getCultures(params);
